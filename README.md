@@ -1,183 +1,157 @@
-# Sol2Base - Solana to Base Bridge
+# sol2base
 
-A modern web application that allows users to bridge USDC tokens from Solana Devnet to Base Sepolia using the official [Base/Solana bridge](https://github.com/base/bridge).
+A Solana to Base bridge application that enables seamless SOL transfers from Solana Devnet to Base Sepolia testnet.
 
-![Sol2Base Screenshot](https://via.placeholder.com/800x400/4F46E5/FFFFFF?text=Sol2Base+Bridge+Interface)
+![sol2base Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
 
-## 🚀 Features
+## 🌉 Features
 
-- **Wallet Integration**: Connect your Solana wallet (Phantom, Solflare, etc.)
-- **Test Token Faucet**: Get free USDC tokens on Solana Devnet
-- **Cross-Chain Bridge**: Bridge USDC from Solana Devnet to Base Sepolia
-- **ENS/Basename Support**: Enter Base addresses or ENS/basename destinations
-- **Real-Time Balances**: View your SOL and USDC balances
-- **Transaction Tracking**: Monitor bridge transactions with status updates
-- **Modern UI**: Beautiful, responsive interface built with Tailwind CSS
+- **Real Bridge Functionality**: Actual SOL bridging from Solana Devnet to Base Sepolia
+- **CDP Faucet Integration**: Get SOL directly from Coinbase Developer Platform
+- **Address Resolution**: Support for ENS names and Basenames
+- **Hacker Theme**: Dark green-on-black aesthetic with matrix rain animations
+- **Real-time Balance**: Live SOL balance tracking
+- **Transaction Status**: Complete transaction history and status monitoring
+- **Responsive Design**: Clean, modern interface that works on all devices
 
-## 🛠 Technology Stack
-
-- **Frontend**: Next.js 14 with TypeScript
-- **Styling**: Tailwind CSS
-- **Wallet**: Solana Wallet Adapter
-- **Blockchain**: Solana Web3.js
-- **Bridge**: Official Base/Solana bridge contracts
-
-## 🏗 Architecture
-
-### Smart Contracts
-- **Base Sepolia Contracts**:
-  - Bridge: `0x5961B1579913632c91c8cdC771cF48251A4B54F0`
-  - Bridge Validator: `0xc317307EfC64e39B1ec2ADAf507a64f8276263cF`
-  - Wrapped USDC: `0x4752285a93F5d0756bB2D6ed013b40ea8527a8DA`
-
-- **Solana Devnet Programs**:
-  - Bridge Program: `83hN2esneZUbKgLfUvo7uzas4g7kyiodeNKAqZgx5MbH`
-  - Base Relayer: `J29jxzRsQmkpxkJptuaxYXgyNqjFZErxXtDWQ4ma3k51`
-  - Test USDC: `8KkQRERXdASmXqeWw7sPFB56wLxyHMKc9NPDW64EEL31`
-
-### Components
-- `BridgeInterface`: Main bridge interface component
-- `WalletProvider`: Solana wallet connection provider
-- `FaucetButton`: USDC faucet functionality
-- `BridgeForm`: Bridge transaction form
-- `BalanceDisplay`: Real-time balance display
-- `TransactionStatus`: Transaction history and status
-
-## 🚦 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+ 
 - npm or yarn
-- Solana wallet (Phantom recommended)
+- A Solana wallet (Phantom, Solflare)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd sol2base
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up CDP API credentials**
-   ```bash
-   # Copy the environment template
-   cp env.template .env.local
-   
-   # Edit .env.local and add your CDP credentials:
-   # CDP_API_KEY_ID=your-api-key-id
-   # CDP_API_KEY_SECRET=your-api-key-secret  
-   # CDP_WALLET_SECRET=your-wallet-secret
-   ```
-   
-   Get your CDP API credentials from [CDP Portal](https://portal.cdp.coinbase.com/access/api)
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open your browser**
-   Navigate to `http://localhost:3000` (or `http://localhost:3001` if port 3000 is in use)
-
-### Usage
-
-1. **Connect Wallet**: Click "Select Wallet" and connect your Solana wallet
-2. **Get Test Tokens**: Use the CDP Faucet to get 1 USDC on Solana Devnet (10 claims per 24 hours)
-3. **Bridge to Base**: Enter a Base Sepolia address and amount to bridge
-4. **Monitor Progress**: Track your transactions in the transaction history
-
-## 🔧 Configuration
-
-The application uses the following networks:
-
-- **Solana Devnet**: For testing Solana transactions
-- **Base Sepolia**: For testing Base transactions
-
-Bridge configuration can be modified in `src/lib/constants.ts`:
-
-```typescript
-export const BRIDGE_CONFIG = {
-  minBridgeAmount: 1000000, // 1 USDC (6 decimals)
-  estimatedGasLimit: 200000,
-  requiredConfirmations: 12,
-  bridgeTimeout: 15 * 60 * 1000, // 15 minutes
-};
+1. Clone the repository:
+```bash
+git clone https://github.com/Jnix2007/sol2base.git
+cd sol2base
 ```
 
-## 🎯 How It Works
+2. Install dependencies:
+```bash
+npm install --legacy-peer-deps
+```
 
-### Bridging Process
+3. Copy environment template:
+```bash
+cp env.template .env.local
+```
 
-1. **Initiate Bridge**: User specifies amount and Base destination address
-2. **Solana Transaction**: Tokens are locked in the Solana bridge contract
-3. **Proof Generation**: Bridge validators generate merkle proofs (~15 minutes)
-4. **Base Completion**: Tokens are minted on Base Sepolia to the destination
+4. (Optional) Add CDP API credentials to `.env.local` for real faucet functionality:
+```env
+CDP_API_KEY_ID=your_cdp_api_key_id
+CDP_API_KEY_SECRET=your_cdp_api_key_secret
+CDP_WALLET_SECRET=your_cdp_wallet_secret
+```
 
-### Mock Implementation
+5. Start the development server:
+```bash
+npm run dev
+```
 
-For demonstration purposes, this application includes mock services:
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-- **Mock Faucet**: Simulates USDC token distribution
-- **Mock Balances**: Tracks token balances locally
-- **Mock Bridge**: Simulates bridge transactions
+## 🔧 How It Works
 
-To integrate with real contracts, uncomment the real implementation code in:
-- `src/lib/bridge.ts`
-- `src/lib/faucet.ts`
+### Bridge Process
 
-## 🚨 Important Notes
+1. **Connect Wallet**: Connect your Solana wallet (Phantom/Solflare)
+2. **Get SOL**: Use the integrated CDP faucet to get SOL on Solana Devnet
+3. **Enter Details**: Specify amount and destination (Base Sepolia address, ENS, or Basename)
+4. **Bridge**: Execute the bridge transaction
+5. **Monitor**: Track your transaction status in real-time
 
-⚠️ **Testnet Only**: This application is configured for testnets only:
-- Solana Devnet
-- Base Sepolia
+### Technical Architecture
 
-⚠️ **No Real Value**: Test tokens have no real-world value
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
+- **Solana Integration**: Uses `@solana/wallet-adapter` and `@solana/web3.js`
+- **Bridge Contracts**: Real Base/Solana bridge smart contracts
+- **Address Resolution**: ENS and Basename support via ethers.js
+- **Faucet**: CDP (Coinbase Developer Platform) integration
 
-⚠️ **Development**: This is a demonstration application. For production use:
-- Implement proper error handling
-- Add comprehensive testing
-- Integrate with real faucet services
-- Add proper authentication
-- Implement rate limiting
+## 🎨 UI Theme
 
-## 🛡 Security Considerations
+The application features a distinctive "hacker" aesthetic:
+- **Colors**: Bright green (#00ff00) on black background
+- **Typography**: JetBrains Mono and Orbitron fonts
+- **Animations**: Matrix rain effects and glowing text
+- **Logo**: Pixelated suspension bridge with animated effects
 
-- Never use mainnet private keys in development
-- Always verify contract addresses before transactions
-- Implement proper input validation
-- Use secure RPC endpoints in production
-- Add transaction confirmation requirements
+## 📱 Components
 
-## 📚 Resources
+- **Faucet Section**: Get SOL from CDP with rate limiting info
+- **Bridge Form**: Input validation and address resolution
+- **Balance Display**: Real-time SOL balance tracking  
+- **Transaction History**: Complete status tracking
+- **Wallet Integration**: Seamless wallet connection
 
-- [Base/Solana Bridge Repository](https://github.com/base/bridge)
-- [Solana Web3.js Documentation](https://solana-labs.github.io/solana-web3.js/)
-- [Base Documentation](https://docs.base.org/)
-- [Solana Documentation](https://docs.solana.com/)
+## 🔗 Networks
+
+- **Source**: Solana Devnet
+- **Destination**: Base Sepolia Testnet
+- **Faucet**: CDP Solana Devnet SOL Faucet
+- **Backup Faucet**: [faucet.solana.com](https://faucet.solana.com)
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+sol2base/
+├── src/
+│   ├── app/                 # Next.js app router
+│   ├── components/          # React components
+│   ├── lib/                 # Utilities and services
+│   └── styles/              # Global styles
+├── bridge-contracts/        # Base bridge contracts
+├── bridge-solana/          # Solana bridge programs
+└── public/                 # Static assets
+```
+
+### Key Files
+
+- `src/lib/bridge.ts` - Main bridge service
+- `src/lib/realBridgeImplementation.ts` - Real bridge transaction logic
+- `src/lib/cdpFaucet.ts` - CDP faucet integration
+- `src/lib/addressResolver.ts` - ENS/Basename resolution
+- `src/components/MainContent.tsx` - Main application interface
+
+## 🔐 Security
+
+- **No Private Keys**: Uses wallet adapter for secure signing
+- **Address Validation**: Validates all addresses before transactions
+- **Error Handling**: Comprehensive error handling and user feedback
+- **Rate Limiting**: Respects faucet rate limits
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [Base Team](https://github.com/base) for the official bridge implementation
-- [Solana Labs](https://github.com/solana-labs) for the Solana ecosystem
-- [Phantom Wallet](https://phantom.app/) for wallet integration
+- [Base](https://base.org) for the bridge infrastructure
+- [Coinbase Developer Platform](https://docs.cdp.coinbase.com) for faucet services
+- [Solana](https://solana.com) for the blockchain infrastructure
+- The open-source community for the amazing tools and libraries
+
+## 🔗 Links
+
+- **Live Demo**: [Coming Soon]
+- **Base Bridge Docs**: [github.com/base/bridge](https://github.com/base/bridge)
+- **Solana Docs**: [docs.solana.com](https://docs.solana.com)
+- **CDP Docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
 
 ---
 
-**Happy Bridging! 🌉**
+**"Base is a bridge, not an island"** 🌉
