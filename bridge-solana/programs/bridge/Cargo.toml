@@ -1,0 +1,40 @@
+[package]
+name = "bridge"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "bridge"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+devnet = []
+alpha = []
+prod = []
+
+[dependencies]
+anchor-lang = { version = "=0.31.1", features = ["init-if-needed"] }
+anchor-spl = "=0.31.1"
+spl-type-length-value = "0.7.0"
+
+alloy-primitives = "=0.8.13"
+alloy-sol-types = { version = "=0.8.13" }
+alloy-sol-type-parser = "=0.8.13" # Pulled by the json feature above so pin a version that works with the rustc version
+
+hex = "0.4.3"
+
+[dev-dependencies]
+litesvm = "0.6.1"
+solana-account = "2.2.1"
+solana-keypair = "2.2.1"
+solana-signer = "2.2.1"
+solana-transaction = "2.2.1"
+solana-message = "2.2.1"
+secp256k1 = { version = "0.28", features = ["recovery"] }

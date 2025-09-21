@@ -1,0 +1,14 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+fs_permissions = [{ access = "read-write", path = "./" }]
+extra_output_files = ['abi']
+optimizer = true
+remappings = ["forge-std/=lib/forge-std/src/", "solady/=lib/solady/src/"]
+gas_limit = "18446744073709551615"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[fmt]
+sort_imports = true
+wrap_comments = true
