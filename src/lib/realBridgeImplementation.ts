@@ -112,14 +112,12 @@ export class RealBridgeImplementation {
         console.log('📊 Config account data length:', cfgAccountInfo.data.length);
         console.log('🏦 Config account owner:', cfgAccountInfo.owner.toString());
         
-        // Parse config account to get the correct gas fee receiver
-        // Based on the error, the relayer expects: 5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX
-        const expectedRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
-        console.log('🏦 Using relayer-specific gas fee receiver:', expectedRelayerGasFeeReceiver.toString());
+        // Based on the error logs, the relayer expects a specific gas fee receiver
+        const relayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+        const bridgeGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
         
-        // Use different gas fee receivers for different instructions
-        const relayerGasFeeReceiver = expectedRelayerGasFeeReceiver;
-        const bridgeGasFeeReceiver = gasFeeReceiver; // Keep original for bridge instruction
+        console.log('🏦 Relay gas fee receiver:', relayerGasFeeReceiver.toString());
+        console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
         
         // Create the pay_for_relay instruction with relayer-specific gas fee receiver
         const relayInstruction = this.createPayForRelayInstruction({
