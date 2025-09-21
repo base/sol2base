@@ -1,6 +1,6 @@
 import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
-import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG } from './constants';
+import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
+import { SOLANA_DEVNET_CONFIG } from './constants';
 
 /**
  * Real Bridge Service using the Base/Solana bridge contracts
@@ -44,7 +44,8 @@ export class RealBridgeService {
       if (account.amount < amountLamports) {
         throw new Error('Insufficient USDC balance');
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Token account check failed:', err);
       throw new Error('USDC token account not found. Please get USDC first.');
     }
 
@@ -109,6 +110,7 @@ export class RealBridgeService {
     bridgeFee: number;
     total: number;
   }> {
+    console.log(`Estimating bridge fee for ${amount} USDC`);
     // These would be calculated based on current gas prices and bridge configuration
     const gasFee = 0.001; // SOL for Solana transaction
     const bridgeFee = 0.002; // Estimated Base gas fee
@@ -130,6 +132,7 @@ export class RealBridgeService {
     baseTransactionHash?: string;
     estimatedCompletionTime?: number;
   }> {
+    console.log(`Getting bridge status for transaction: ${txHash}`);
     // In a real implementation, this would query the bridge validators
     // and check the status on both Solana and Base
     

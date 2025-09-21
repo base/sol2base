@@ -25,7 +25,7 @@ type ParsedConstantValue<Name extends BridgeConstantNames> =
         : BridgeConstantField<BridgeConstants, Name, "type"> extends "bytes"
           ? number[]
           : BridgeConstantField<BridgeConstants, Name, "type"> extends {
-                array: any;
+                array: unknown;
               }
             ? number[]
             : BridgeConstantField<
