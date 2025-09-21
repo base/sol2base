@@ -100,9 +100,9 @@ export class RealBridgeImplementation {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // Temporarily disable relay payment to test bridge functionality
-      console.log('⚠️  Temporarily skipping pay_for_relay to test bridge-only functionality');
-      console.log('🔄 This will test if bridge infrastructure works without relay payment');
+      // Enable relay payment to debug gas fee receiver issue
+      console.log('🚀 ATTEMPTING COMPLETE BRIDGE with pay_for_relay instruction');
+      console.log('🔄 This will test the full bridge functionality with relay payment');
       
       try {
         // Enable relay payment with enhanced debugging
