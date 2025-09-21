@@ -14,7 +14,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-8">
           {/* Top-left tagline */}
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-blue-400 mr-2" style={{ boxShadow: '0 0 5px #60a5fa' }}></div>
+            <div className="w-3 h-3 mr-2" style={{ backgroundColor: '#0000FF', boxShadow: '0 0 5px #0000FF' }}></div>
             <p className="text-blue-400 font-bold text-[16px] italic">
               Base is a bridge, not an island
             </p>
