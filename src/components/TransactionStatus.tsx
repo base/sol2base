@@ -113,7 +113,7 @@ export const TransactionStatus: React.FC<TransactionStatusProps> = ({
                   {tx.type === 'faucet' ? 'Faucet' : 'Bridge'}
                 </span>
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {tx.amount} USDC
+                  {tx.amount} SOL
                 </span>
               </div>
               <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
