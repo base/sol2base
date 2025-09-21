@@ -26,6 +26,7 @@ export class RealBridgeImplementation {
 
   /**
    * Create a real bridge transaction using the actual bridge_sol instruction
+   * @param includeRelayPayment - Whether to include pay_for_relay instruction (experimental)
    */
   async createBridgeTransaction(
     walletAddress: PublicKey,
@@ -84,9 +85,9 @@ export class RealBridgeImplementation {
       // Create message to relay keypair
       const messageToRelayKeypair = Keypair.generate();
 
-      // Calculate relayer config PDA
+      // Calculate relayer config PDA using correct CFG_SEED
       const [cfgAddress] = PublicKey.findProgramAddressSync(
-        [Buffer.from("cfg")], // CFG_SEED from base relayer constants
+        [Buffer.from("config")], // CFG_SEED = "config" 
         this.baseRelayerProgramId
       );
 
@@ -124,12 +125,15 @@ export class RealBridgeImplementation {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // Add BOTH instructions - relay payment first, then bridge
-      transaction.add(relayInstruction);
+      // For now, only add bridge instruction since relayer config might not be ready
+      // TODO: Add relay instruction when Base relayer is fully operational
+      console.log('⚠️  Skipping pay_for_relay instruction - Base relayer may not be operational yet');
+      console.log('🔄 Using bridge_sol only - this will lock SOL and create outgoing message');
+      
       transaction.add(bridgeInstruction);
 
-      // Partial sign with both keypairs
-      transaction.partialSign(messageToRelayKeypair, outgoingMessageKeypair);
+      // Partial sign with outgoing message keypair only
+      transaction.partialSign(outgoingMessageKeypair);
 
       return transaction;
       
