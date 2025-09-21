@@ -180,11 +180,11 @@ export class RealBridgeImplementation {
         console.log('🔍 Created relay instruction with', relayInstruction.keys.length, 'accounts');
         console.log('🔍 Relay instruction gas fee receiver (account 2):', relayInstruction.keys[2].pubkey.toString());
 
-        // Create the bridge_sol instruction with bridge-specific gas fee receiver
+        // Create the bridge_sol instruction with SAME gas fee receiver as relay
         const bridgeInstruction = this.createBridgeSolInstruction({
           payer: walletAddress,
           from: walletAddress,
-          gasFeeReceiver: bridgeGasFeeReceiver, // Use bridge-specific address
+          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use SAME address as relay
           solVault: solVaultAddress,
           bridge: bridgeAddress,
           outgoingMessage: outgoingMessageKeypair.publicKey,
