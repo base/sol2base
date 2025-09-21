@@ -262,23 +262,27 @@ export class RealBridgeImplementation {
     // pay_for_relay discriminator
     const discriminator = Buffer.from([41, 191, 218, 201, 250, 164, 156, 55]);
     
-    // Convert outgoing message address to bytes
-    const outgoingMessageBytes = outgoingMessage.toBuffer();
-    
-    // Create instruction data: discriminator + outgoingMessage + gasLimit
+    // Create instruction data using proper encoding format
+    // Based on generated client: discriminator + outgoingMessage (Address) + gasLimit (u64)
     const data = Buffer.alloc(8 + 32 + 8); // discriminator + address + u64
     let offset = 0;
     
-    // Write discriminator
+    // Write discriminator (8 bytes)
     discriminator.copy(data, offset);
     offset += 8;
     
-    // Write outgoing message address (32 bytes)
+    // Write outgoing message address (32 bytes) - Solana address format
+    const outgoingMessageBytes = outgoingMessage.toBuffer();
     outgoingMessageBytes.copy(data, offset);
     offset += 32;
     
     // Write gas limit (8 bytes, little-endian u64)
     data.writeBigUInt64LE(gasLimit, offset);
+    
+    console.log('🔍 PayForRelay instruction data length:', data.length);
+    console.log('🔍 PayForRelay discriminator:', Array.from(discriminator));
+    console.log('🔍 PayForRelay outgoing message:', outgoingMessage.toString());
+    console.log('🔍 PayForRelay gas limit:', gasLimit.toString());
     
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
@@ -287,6 +291,13 @@ export class RealBridgeImplementation {
       { pubkey: messageToRelay, isSigner: true, isWritable: true },
       { pubkey: systemProgram, isSigner: false, isWritable: false },
     ];
+    
+    console.log('🔍 PayForRelay accounts:');
+    console.log('  [0] payer:', payer.toString(), '(signer, writable)');
+    console.log('  [1] cfg:', cfg.toString(), '(writable)');
+    console.log('  [2] gasFeeReceiver:', gasFeeReceiver.toString(), '(writable) ⚠️ THIS IS THE CRITICAL ONE');
+    console.log('  [3] messageToRelay:', messageToRelay.toString(), '(signer, writable)');
+    console.log('  [4] systemProgram:', systemProgram.toString(), '(readonly)');
 
     return new TransactionInstruction({
       keys,
