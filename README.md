@@ -1,8 +1,18 @@
 # sol2base
 
-A Solana to Base bridge application that enables seamless SOL transfers from Solana Devnet to Base Sepolia testnet.
+<div align="center">
+  <img src="assets/sol2base.png" alt="sol2base Bridge" width="800" />
+</div>
 
+<div align="center">
+  <h3>A Solana to Base bridge application that enables seamless SOL transfers from Solana Devnet to Base Sepolia testnet.</h3>
+</div>
+
+<div align="center">
+  
 ![sol2base Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
+
+</div>
 
 ## 🌉 Features
 
