@@ -100,8 +100,18 @@ export class RealBridgeImplementation {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // Check if relayer config account exists before proceeding
+      // Temporarily disable relay payment to test bridge functionality
+      console.log('⚠️  Temporarily skipping pay_for_relay to test bridge-only functionality');
+      console.log('🔄 This will test if bridge infrastructure works without relay payment');
+      
       try {
+        // Skip relayer config check for now - focus on core bridge functionality
+        const skipRelayPayment = true;
+        if (skipRelayPayment) {
+          console.log('🔄 Skipping relay payment - testing bridge-only functionality');
+          throw new Error('Skipping relay payment for testing');
+        }
+        
         const cfgAccountInfo = await this.connection.getAccountInfo(cfgAddress);
         if (!cfgAccountInfo) {
           console.log('❌ Relayer config account does not exist:', cfgAddress.toString());
