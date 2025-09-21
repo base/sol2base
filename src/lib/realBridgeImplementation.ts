@@ -116,8 +116,9 @@ export class RealBridgeImplementation {
         const relayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
         const bridgeGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
         
-        console.log('🏦 Relay gas fee receiver:', relayerGasFeeReceiver.toString());
+        console.log('🏦 Relay gas fee receiver (UPDATED):', relayerGasFeeReceiver.toString());
         console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
+        console.log('🔧 Using correct addresses for each instruction type');
         
         // Create the pay_for_relay instruction with relayer-specific gas fee receiver
         const relayInstruction = this.createPayForRelayInstruction({
