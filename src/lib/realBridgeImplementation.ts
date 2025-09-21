@@ -137,11 +137,11 @@ export class RealBridgeImplementation {
             console.log('🔍 Config gas fee receiver option 1 (offset 88):', offset1.toString());
             console.log('🔍 Config gas fee receiver option 2 (offset 120):', offset2.toString());
             
-            // Try the FIRST option from config data (offset 88)
-            console.log('🧪 Testing with config option 1:', offset1.toString());
-            actualRelayerGasFeeReceiver = offset1;
+            // Based on error logs, the program ACTUALLY expects the bridge gas fee receiver
+            console.log('🧪 Program expects bridge gas fee receiver for relay payment too!');
+            actualRelayerGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
             
-            // If that doesn't match expected, the program might be using a different validation
+            console.log('🔧 Using bridge gas fee receiver for BOTH instructions');
           } else {
             actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
           }
