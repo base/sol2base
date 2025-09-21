@@ -113,32 +113,30 @@ export class RealBridgeImplementation {
         console.log('🏦 Config account owner:', cfgAccountInfo.owner.toString());
         
         // Parse config account to get the correct gas fee receiver
-        // The config account contains the gas fee receiver address at a specific offset
-        if (cfgAccountInfo.data.length >= 168) {
-          // Extract gas fee receiver from config data (based on account structure)
-          const configGasFeeReceiver = new PublicKey(cfgAccountInfo.data.slice(88, 120)); // bytes 88-120
-          console.log('🏦 Config gas fee receiver:', configGasFeeReceiver.toString());
-          
-          // Use the gas fee receiver from config instead of hardcoded one
-          gasFeeReceiver = configGasFeeReceiver;
-        }
+        // Based on the error, the relayer expects: 5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX
+        const expectedRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+        console.log('🏦 Using relayer-specific gas fee receiver:', expectedRelayerGasFeeReceiver.toString());
         
-        // Create the pay_for_relay instruction with correct gas fee receiver
+        // Use different gas fee receivers for different instructions
+        const relayerGasFeeReceiver = expectedRelayerGasFeeReceiver;
+        const bridgeGasFeeReceiver = gasFeeReceiver; // Keep original for bridge instruction
+        
+        // Create the pay_for_relay instruction with relayer-specific gas fee receiver
         const relayInstruction = this.createPayForRelayInstruction({
           payer: walletAddress,
           cfg: cfgAddress,
-          gasFeeReceiver,
+          gasFeeReceiver: relayerGasFeeReceiver, // Use relayer-specific address
           messageToRelay: messageToRelayKeypair.publicKey,
           systemProgram: SystemProgram.programId,
           outgoingMessage: outgoingMessageKeypair.publicKey,
           gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
         });
 
-        // Create the bridge_sol instruction with correct gas fee receiver
+        // Create the bridge_sol instruction with bridge-specific gas fee receiver
         const bridgeInstruction = this.createBridgeSolInstruction({
           payer: walletAddress,
           from: walletAddress,
-          gasFeeReceiver,
+          gasFeeReceiver: bridgeGasFeeReceiver, // Use bridge-specific address
           solVault: solVaultAddress,
           bridge: bridgeAddress,
           outgoingMessage: outgoingMessageKeypair.publicKey,
@@ -163,11 +161,11 @@ export class RealBridgeImplementation {
       } catch (error) {
         console.error('❌ Error with relay payment, falling back to bridge-only:', error);
         
-        // Create fallback bridge instruction
+        // Create fallback bridge instruction with original gas fee receiver
         const fallbackBridgeInstruction = this.createBridgeSolInstruction({
           payer: walletAddress,
           from: walletAddress,
-          gasFeeReceiver,
+          gasFeeReceiver: new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F"), // Use bridge gas fee receiver
           solVault: solVaultAddress,
           bridge: bridgeAddress,
           outgoingMessage: outgoingMessageKeypair.publicKey,
