@@ -1,16 +1,13 @@
-import { CdpClient } from "@coinbase/cdp-sdk";
-
 /**
  * CDP Faucet Service for Base Sepolia USDC
  * Uses the official Coinbase Developer Platform Faucet API
  */
 export class CdpFaucetService {
-  private cdp: CdpClient;
+  private cdp: any = null;
   private initialized = false;
 
   constructor() {
-    // Initialize CDP client - will be done lazily when first used
-    this.cdp = new CdpClient();
+    // CDP client will be initialized lazily when first used
   }
 
   /**
@@ -24,6 +21,21 @@ export class CdpFaucetService {
       throw new Error(
         'CDP API credentials not found. Please set CDP_API_KEY_ID and CDP_API_KEY_SECRET in your .env.local file'
       );
+    }
+
+    try {
+      // Dynamically import CDP SDK only when needed (at runtime)
+      const { CdpClient } = await import("@coinbase/cdp-sdk");
+      this.cdp = new CdpClient();
+      
+      await this.cdp.configure({
+        apiKeyId: process.env.CDP_API_KEY_ID || '',
+        apiKeySecret: process.env.CDP_API_KEY_SECRET || '',
+        walletSecret: process.env.CDP_WALLET_SECRET || ''
+      });
+    } catch (error) {
+      console.error('Failed to initialize CDP client:', error);
+      throw new Error('CDP client initialization failed. Please check your API credentials.');
     }
 
     this.initialized = true;
