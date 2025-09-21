@@ -105,8 +105,8 @@ export class RealBridgeImplementation {
       console.log('🔄 This will test if bridge infrastructure works without relay payment');
       
       try {
-        // Skip relayer config check for now - focus on core bridge functionality
-        const skipRelayPayment = true;
+        // Disable relay payment for now - focus on core bridge functionality  
+        const skipRelayPayment = true; // Keep relay payment disabled
         if (skipRelayPayment) {
           console.log('🔄 Skipping relay payment - testing bridge-only functionality');
           throw new Error('Skipping relay payment for testing');
@@ -130,7 +130,14 @@ export class RealBridgeImplementation {
         console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
         console.log('🔧 Using correct addresses for each instruction type');
         
-        // Create the pay_for_relay instruction with relayer-specific gas fee receiver
+        // Create the pay_for_relay instruction with detailed debugging
+        console.log('🔧 Creating pay_for_relay instruction with:');
+        console.log('  - payer:', walletAddress.toString());
+        console.log('  - cfg:', cfgAddress.toString());
+        console.log('  - gasFeeReceiver:', relayerGasFeeReceiver.toString());
+        console.log('  - messageToRelay:', messageToRelayKeypair.publicKey.toString());
+        console.log('  - outgoingMessage:', outgoingMessageKeypair.publicKey.toString());
+        
         const relayInstruction = this.createPayForRelayInstruction({
           payer: walletAddress,
           cfg: cfgAddress,
@@ -140,6 +147,9 @@ export class RealBridgeImplementation {
           outgoingMessage: outgoingMessageKeypair.publicKey,
           gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
         });
+        
+        console.log('🔍 Created relay instruction with', relayInstruction.keys.length, 'accounts');
+        console.log('🔍 Relay instruction gas fee receiver (account 2):', relayInstruction.keys[2].pubkey.toString());
 
         // Create the bridge_sol instruction with bridge-specific gas fee receiver
         const bridgeInstruction = this.createBridgeSolInstruction({
