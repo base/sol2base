@@ -78,7 +78,7 @@ export class RealBridgeImplementation {
 
       // Use the actual gas fee receiver from the bridge deployment
       // This is the address the bridge program expects for gas fee collection
-      const gasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
+      let gasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
       
       console.log(`Gas Fee Receiver: ${gasFeeReceiver.toString()} (bridge operator's address)`);
 
@@ -94,46 +94,95 @@ export class RealBridgeImplementation {
       console.log(`Relayer Config: ${cfgAddress.toString()}`);
       console.log(`Message To Relay: ${messageToRelayKeypair.publicKey.toString()}`);
 
-      // Create the pay_for_relay instruction first
-      const relayInstruction = this.createPayForRelayInstruction({
-        payer: walletAddress,
-        cfg: cfgAddress,
-        gasFeeReceiver,
-        messageToRelay: messageToRelayKeypair.publicKey,
-        systemProgram: SystemProgram.programId,
-        outgoingMessage: outgoingMessageKeypair.publicKey,
-        gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
-      });
-
-      // Create the bridge_sol instruction
-      const bridgeInstruction = this.createBridgeSolInstruction({
-        payer: walletAddress,
-        from: walletAddress,
-        gasFeeReceiver,
-        solVault: solVaultAddress,
-        bridge: bridgeAddress,
-        outgoingMessage: outgoingMessageKeypair.publicKey,
-        systemProgram: SystemProgram.programId,
-        to: destinationAddress,
-        remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
-        amount: amountLamports,
-      });
-
-      // Create transaction with BOTH instructions
+      // Create transaction first
       const transaction = new Transaction();
       const { blockhash } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // For now, only add bridge instruction since relayer config might not be ready
-      // TODO: Add relay instruction when Base relayer is fully operational
-      console.log('⚠️  Skipping pay_for_relay instruction - Base relayer may not be operational yet');
-      console.log('🔄 Using bridge_sol only - this will lock SOL and create outgoing message');
-      
-      transaction.add(bridgeInstruction);
+      // Check if relayer config account exists before proceeding
+      try {
+        const cfgAccountInfo = await this.connection.getAccountInfo(cfgAddress);
+        if (!cfgAccountInfo) {
+          console.log('❌ Relayer config account does not exist:', cfgAddress.toString());
+          throw new Error('Base relayer config account not found. Bridge may not be fully initialized.');
+        }
+        
+        console.log('✅ Relayer config account found:', cfgAddress.toString());
+        console.log('📊 Config account data length:', cfgAccountInfo.data.length);
+        console.log('🏦 Config account owner:', cfgAccountInfo.owner.toString());
+        
+        // Parse config account to get the correct gas fee receiver
+        // The config account contains the gas fee receiver address at a specific offset
+        if (cfgAccountInfo.data.length >= 168) {
+          // Extract gas fee receiver from config data (based on account structure)
+          const configGasFeeReceiver = new PublicKey(cfgAccountInfo.data.slice(88, 120)); // bytes 88-120
+          console.log('🏦 Config gas fee receiver:', configGasFeeReceiver.toString());
+          
+          // Use the gas fee receiver from config instead of hardcoded one
+          gasFeeReceiver = configGasFeeReceiver;
+        }
+        
+        // Create the pay_for_relay instruction with correct gas fee receiver
+        const relayInstruction = this.createPayForRelayInstruction({
+          payer: walletAddress,
+          cfg: cfgAddress,
+          gasFeeReceiver,
+          messageToRelay: messageToRelayKeypair.publicKey,
+          systemProgram: SystemProgram.programId,
+          outgoingMessage: outgoingMessageKeypair.publicKey,
+          gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
+        });
 
-      // Partial sign with outgoing message keypair only
-      transaction.partialSign(outgoingMessageKeypair);
+        // Create the bridge_sol instruction with correct gas fee receiver
+        const bridgeInstruction = this.createBridgeSolInstruction({
+          payer: walletAddress,
+          from: walletAddress,
+          gasFeeReceiver,
+          solVault: solVaultAddress,
+          bridge: bridgeAddress,
+          outgoingMessage: outgoingMessageKeypair.publicKey,
+          systemProgram: SystemProgram.programId,
+          to: destinationAddress,
+          remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
+          amount: amountLamports,
+        });
+        
+        // Add BOTH instructions - relay payment first, then bridge
+        console.log('🔄 Adding pay_for_relay instruction...');
+        transaction.add(relayInstruction);
+        
+        console.log('🔄 Adding bridge_sol instruction...');
+        transaction.add(bridgeInstruction);
+
+        // Partial sign with both keypairs
+        transaction.partialSign(messageToRelayKeypair, outgoingMessageKeypair);
+        
+        console.log('✅ Transaction built with both instructions');
+        
+      } catch (error) {
+        console.error('❌ Error with relay payment, falling back to bridge-only:', error);
+        
+        // Create fallback bridge instruction
+        const fallbackBridgeInstruction = this.createBridgeSolInstruction({
+          payer: walletAddress,
+          from: walletAddress,
+          gasFeeReceiver,
+          solVault: solVaultAddress,
+          bridge: bridgeAddress,
+          outgoingMessage: outgoingMessageKeypair.publicKey,
+          systemProgram: SystemProgram.programId,
+          to: destinationAddress,
+          remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
+          amount: amountLamports,
+        });
+        
+        // Fallback: just bridge instruction if relay payment fails
+        transaction.add(fallbackBridgeInstruction);
+        transaction.partialSign(outgoingMessageKeypair);
+        
+        console.log('⚠️  Using bridge_sol only as fallback');
+      }
 
       return transaction;
       
