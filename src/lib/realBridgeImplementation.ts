@@ -105,8 +105,8 @@ export class RealBridgeImplementation {
       console.log('🔄 This will test if bridge infrastructure works without relay payment');
       
       try {
-        // Disable relay payment for now - focus on core bridge functionality  
-        const skipRelayPayment = true; // Keep relay payment disabled
+        // Enable relay payment with enhanced debugging
+        const skipRelayPayment = false; // Enable relay payment to debug gas fee receiver issue
         if (skipRelayPayment) {
           console.log('🔄 Skipping relay payment - testing bridge-only functionality');
           throw new Error('Skipping relay payment for testing');
