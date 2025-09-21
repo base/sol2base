@@ -137,15 +137,11 @@ export class RealBridgeImplementation {
             console.log('🔍 Config gas fee receiver option 1 (offset 88):', offset1.toString());
             console.log('🔍 Config gas fee receiver option 2 (offset 120):', offset2.toString());
             
-            // Use the one that matches what the error expects
-            if (offset1.toString() === "5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX") {
-              actualRelayerGasFeeReceiver = offset1;
-            } else if (offset2.toString() === "5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX") {
-              actualRelayerGasFeeReceiver = offset2;
-            } else {
-              // Default to the expected address from error logs
-              actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
-            }
+            // Try the FIRST option from config data (offset 88)
+            console.log('🧪 Testing with config option 1:', offset1.toString());
+            actualRelayerGasFeeReceiver = offset1;
+            
+            // If that doesn't match expected, the program might be using a different validation
           } else {
             actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
           }
@@ -159,22 +155,19 @@ export class RealBridgeImplementation {
         console.log('🏦 Final relay gas fee receiver:', actualRelayerGasFeeReceiver.toString());
         console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
         
-        // Create the pay_for_relay instruction with detailed debugging
-        console.log('🔧 Creating pay_for_relay instruction with:');
-        console.log('  - payer:', walletAddress.toString());
-        console.log('  - cfg:', cfgAddress.toString());
-        console.log('  - gasFeeReceiver:', actualRelayerGasFeeReceiver.toString());
-        console.log('  - messageToRelay:', messageToRelayKeypair.publicKey.toString());
-        console.log('  - outgoingMessage:', outgoingMessageKeypair.publicKey.toString());
+        // Create the pay_for_relay instruction with our manual implementation
+        // The issue might be deeper than instruction encoding
+        console.log('🔧 Creating PayForRelay with manual implementation');
+        console.log('🔧 Using gas fee receiver from config offset 88:', actualRelayerGasFeeReceiver.toString());
         
         const relayInstruction = this.createPayForRelayInstruction({
           payer: walletAddress,
           cfg: cfgAddress,
-          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use parsed gas fee receiver
+          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use address from config data
           messageToRelay: messageToRelayKeypair.publicKey,
           systemProgram: SystemProgram.programId,
           outgoingMessage: outgoingMessageKeypair.publicKey,
-          gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
+          gasLimit: BigInt(200_000),
         });
         
         console.log('🔍 Created relay instruction with', relayInstruction.keys.length, 'accounts');
