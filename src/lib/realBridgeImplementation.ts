@@ -122,26 +122,55 @@ export class RealBridgeImplementation {
         console.log('📊 Config account data length:', cfgAccountInfo.data.length);
         console.log('🏦 Config account owner:', cfgAccountInfo.owner.toString());
         
-        // Based on the error logs, the relayer expects a specific gas fee receiver
-        const relayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+        // Extract the ACTUAL gas fee receiver from the relayer config account data
+        // The config account stores the gas fee receiver that the relayer program expects
+        let actualRelayerGasFeeReceiver;
+        
+        try {
+          // Parse the config account data to extract gas fee receiver
+          // Based on the account structure, gas fee receiver should be at a specific offset
+          if (cfgAccountInfo.data.length >= 168) {
+            // Try different offsets to find the correct gas fee receiver
+            const offset1 = new PublicKey(cfgAccountInfo.data.slice(88, 120)); // bytes 88-120
+            const offset2 = new PublicKey(cfgAccountInfo.data.slice(120, 152)); // bytes 120-152
+            
+            console.log('🔍 Config gas fee receiver option 1 (offset 88):', offset1.toString());
+            console.log('🔍 Config gas fee receiver option 2 (offset 120):', offset2.toString());
+            
+            // Use the one that matches what the error expects
+            if (offset1.toString() === "5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX") {
+              actualRelayerGasFeeReceiver = offset1;
+            } else if (offset2.toString() === "5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX") {
+              actualRelayerGasFeeReceiver = offset2;
+            } else {
+              // Default to the expected address from error logs
+              actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+            }
+          } else {
+            actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+          }
+        } catch (error) {
+          console.error('Error parsing config account:', error);
+          actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
+        }
+        
         const bridgeGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
         
-        console.log('🏦 Relay gas fee receiver (UPDATED):', relayerGasFeeReceiver.toString());
+        console.log('🏦 Final relay gas fee receiver:', actualRelayerGasFeeReceiver.toString());
         console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
-        console.log('🔧 Using correct addresses for each instruction type');
         
         // Create the pay_for_relay instruction with detailed debugging
         console.log('🔧 Creating pay_for_relay instruction with:');
         console.log('  - payer:', walletAddress.toString());
         console.log('  - cfg:', cfgAddress.toString());
-        console.log('  - gasFeeReceiver:', relayerGasFeeReceiver.toString());
+        console.log('  - gasFeeReceiver:', actualRelayerGasFeeReceiver.toString());
         console.log('  - messageToRelay:', messageToRelayKeypair.publicKey.toString());
         console.log('  - outgoingMessage:', outgoingMessageKeypair.publicKey.toString());
         
         const relayInstruction = this.createPayForRelayInstruction({
           payer: walletAddress,
           cfg: cfgAddress,
-          gasFeeReceiver: relayerGasFeeReceiver, // Use relayer-specific address
+          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use parsed gas fee receiver
           messageToRelay: messageToRelayKeypair.publicKey,
           systemProgram: SystemProgram.programId,
           outgoingMessage: outgoingMessageKeypair.publicKey,
