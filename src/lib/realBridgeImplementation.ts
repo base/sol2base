@@ -16,10 +16,12 @@ import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG } from './constants';
 export class RealBridgeImplementation {
   private connection: Connection;
   private bridgeProgramId: PublicKey;
+  private baseRelayerProgramId: PublicKey;
 
   constructor() {
     this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
     this.bridgeProgramId = SOLANA_DEVNET_CONFIG.solanaBridge;
+    this.baseRelayerProgramId = SOLANA_DEVNET_CONFIG.baseRelayerProgram;
   }
 
   /**
@@ -79,7 +81,30 @@ export class RealBridgeImplementation {
       
       console.log(`Gas Fee Receiver: ${gasFeeReceiver.toString()} (bridge operator's address)`);
 
-      // Create the bridge_sol instruction manually
+      // Create message to relay keypair
+      const messageToRelayKeypair = Keypair.generate();
+
+      // Calculate relayer config PDA
+      const [cfgAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from("cfg")], // CFG_SEED from base relayer constants
+        this.baseRelayerProgramId
+      );
+
+      console.log(`Relayer Config: ${cfgAddress.toString()}`);
+      console.log(`Message To Relay: ${messageToRelayKeypair.publicKey.toString()}`);
+
+      // Create the pay_for_relay instruction first
+      const relayInstruction = this.createPayForRelayInstruction({
+        payer: walletAddress,
+        cfg: cfgAddress,
+        gasFeeReceiver,
+        messageToRelay: messageToRelayKeypair.publicKey,
+        systemProgram: SystemProgram.programId,
+        outgoingMessage: outgoingMessageKeypair.publicKey,
+        gasLimit: BigInt(200_000), // Standard gas limit for Base transactions
+      });
+
+      // Create the bridge_sol instruction
       const bridgeInstruction = this.createBridgeSolInstruction({
         payer: walletAddress,
         from: walletAddress,
@@ -93,17 +118,18 @@ export class RealBridgeImplementation {
         amount: amountLamports,
       });
 
-      // Create transaction
+      // Create transaction with BOTH instructions
       const transaction = new Transaction();
       const { blockhash } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // Add instructions
+      // Add BOTH instructions - relay payment first, then bridge
+      transaction.add(relayInstruction);
       transaction.add(bridgeInstruction);
 
-      // Partial sign with outgoing message keypair
-      transaction.partialSign(outgoingMessageKeypair);
+      // Partial sign with both keypairs
+      transaction.partialSign(messageToRelayKeypair, outgoingMessageKeypair);
 
       return transaction;
       
@@ -111,6 +137,63 @@ export class RealBridgeImplementation {
       console.error('Error creating bridge transaction:', error);
       throw error;
     }
+  }
+
+  /**
+   * Create pay_for_relay instruction manually
+   */
+  private createPayForRelayInstruction({
+    payer,
+    cfg,
+    gasFeeReceiver,
+    messageToRelay,
+    systemProgram,
+    outgoingMessage,
+    gasLimit,
+  }: {
+    payer: PublicKey;
+    cfg: PublicKey;
+    gasFeeReceiver: PublicKey;
+    messageToRelay: PublicKey;
+    systemProgram: PublicKey;
+    outgoingMessage: PublicKey;
+    gasLimit: bigint;
+  }): TransactionInstruction {
+    
+    // pay_for_relay discriminator
+    const discriminator = Buffer.from([41, 191, 218, 201, 250, 164, 156, 55]);
+    
+    // Convert outgoing message address to bytes
+    const outgoingMessageBytes = outgoingMessage.toBuffer();
+    
+    // Create instruction data: discriminator + outgoingMessage + gasLimit
+    const data = Buffer.alloc(8 + 32 + 8); // discriminator + address + u64
+    let offset = 0;
+    
+    // Write discriminator
+    discriminator.copy(data, offset);
+    offset += 8;
+    
+    // Write outgoing message address (32 bytes)
+    outgoingMessageBytes.copy(data, offset);
+    offset += 32;
+    
+    // Write gas limit (8 bytes, little-endian u64)
+    data.writeBigUInt64LE(gasLimit, offset);
+    
+    const keys = [
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: cfg, isSigner: false, isWritable: true },
+      { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
+      { pubkey: messageToRelay, isSigner: true, isWritable: true },
+      { pubkey: systemProgram, isSigner: false, isWritable: false },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      programId: this.baseRelayerProgramId,
+      data,
+    });
   }
 
   /**
@@ -175,7 +258,7 @@ export class RealBridgeImplementation {
     // Create accounts array
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
-      { pubkey: from, isSigner: false, isWritable: true },
+      { pubkey: from, isSigner: false, isWritable: true }, // from is same as payer, already signed
       { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
       { pubkey: solVault, isSigner: false, isWritable: true },
       { pubkey: bridge, isSigner: false, isWritable: true },
