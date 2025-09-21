@@ -14,100 +14,98 @@
 
 </div>
 
-## 🌉 Features
+## 🌉 features
 
-- **Real Bridge Functionality**: Actual SOL bridging from Solana Devnet to Base Sepolia
-- **CDP Faucet Integration**: Get SOL directly from Coinbase Developer Platform
-- **Address Resolution**: Support for ENS names and Basenames
-- **Hacker Theme**: Dark green-on-black aesthetic with matrix rain animations
-- **Real-time Balance**: Live SOL balance tracking
-- **Transaction Status**: Complete transaction history and status monitoring
-- **Responsive Design**: Clean, modern interface that works on all devices
+- **Bridge functionality**: SOL bridging from Solana Devnet to Base Sepolia
+- **CDP Faucet integration**: Get SOL from Coinbase Developer Platform
+- **Address resolution**: Support for ENS names and Basenames
+- **Real-time balance**: Live SOL balance tracking for connected wallet
+- **Transaction status**: Complete bridge transaction history and status monitoring (to the Solana Devnet side; as of 9/20/25 seems to be some bridge infra issue on the Base Sepolia side)
+- **Responsive design**: Clean, modern interface that works on all devices
 
-## 🚀 Quick Start
+## 🚀 quickstart
 
-### Prerequisites
+### pre-reqs
 
 - Node.js 18+ 
 - npm or yarn
-- A Solana wallet (Phantom, Solflare)
+- Solana wallet (Phantom, Solflare) to connect in the UI
 
-### Installation
+### installation
 
-1. Clone the repository:
+1. clone the repo:
 ```bash
 git clone https://github.com/Jnix2007/sol2base.git
 cd sol2base
 ```
 
-2. Install dependencies:
+2. install dependencies:
 ```bash
 npm install --legacy-peer-deps
 ```
 
-3. Copy environment template:
+3. copy env template:
 ```bash
 cp env.template .env.local
 ```
 
-4. (Optional) Add CDP API credentials to `.env.local` for real faucet functionality:
+4. *(optional)* Add CDP API credentials to `.env.local` for faucet functionality:
 ```env
 CDP_API_KEY_ID=your_cdp_api_key_id
 CDP_API_KEY_SECRET=your_cdp_api_key_secret
-CDP_WALLET_SECRET=your_cdp_wallet_secret
 ```
 
-5. Start the development server:
+5. start your dev server:
 ```bash
 npm run dev
 ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
+6. open [http://localhost:3000](http://localhost:3000)
 
-## 🔧 How It Works
+## 🔧 how it woooorks
 
-### Bridge Process
+### Bridge process
 
-1. **Connect Wallet**: Connect your Solana wallet (Phantom/Solflare)
-2. **Get SOL**: Use the integrated CDP faucet to get SOL on Solana Devnet
-3. **Enter Details**: Specify amount and destination (Base Sepolia address, ENS, or Basename)
-4. **Bridge**: Execute the bridge transaction
-5. **Monitor**: Track your transaction status in real-time
+1. **connect wallet**: Connect Solana wallet (Phantom/Solflare)
+2. **get SOL**: Use the integrated CDP Faucet to get SOL on Solana Devnet
+3. **enter details**: Specify amount and destination (Base Sepolia address, ENS, or Basename)
+4. **Bridge!**: Execute the bridge txn
+5. **monitor**: Track txn status in real-time
 
-### Technical Architecture
+### architecture
 
-- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Solana Integration**: Uses `@solana/wallet-adapter` and `@solana/web3.js`
-- **Bridge Contracts**: Real Base/Solana bridge smart contracts
-- **Address Resolution**: ENS and Basename support via ethers.js
-- **Faucet**: CDP (Coinbase Developer Platform) integration
+- **frontend**: Next.js 15 with TypeScript and Tailwind CSS
+- **Solana integration**: Uses `@solana/wallet-adapter` and `@solana/web3.js`
+- **Bridge contracts**: Real Base/Solana bridge smart contracts
+- **address resolution**: ENS and Basename support via ethers.js
+- **faucet**: CDP (Coinbase Developer Platform) Faucet integration
 
-## 🎨 UI Theme
+## 🎨 UI theme
 
-The application features a distinctive "hacker" aesthetic:
-- **Colors**: Bright green (#00ff00) on black background
-- **Typography**: JetBrains Mono and Orbitron fonts
-- **Animations**: Matrix rain effects and glowing text
-- **Logo**: Pixelated suspension bridge with animated effects
+I was going for a fun "hacker" aesthetic:
+- **colors**: Bright green (#00ff00) on black background
+- **font faces**: JetBrains Mono and Orbitron fonts
+- **animations**: Matrix rain effects and glowing text
+- **logo**: Pixelated suspension bridge with animated effects
 
-## 📱 Components
+## 📱 components
 
-- **Faucet Section**: Get SOL from CDP with rate limiting info
-- **Bridge Form**: Input validation and address resolution
-- **Balance Display**: Real-time SOL balance tracking  
-- **Transaction History**: Complete status tracking
-- **Wallet Integration**: Seamless wallet connection
+- **Faucet section**: Get SOL from CDP with rate limiting info, and backup link to SF faucet in case I've exceeded CDP Faucet limits
+- **Bridge form**: Input validation & address resolution
+- **Balance display**: SOL balance tracking  
+- **Transaction history**: Status tracking
+- **Wallet integration**: Wallet connection
 
-## 🔗 Networks
+## 🔗 networks
 
-- **Source**: Solana Devnet
-- **Destination**: Base Sepolia Testnet
+- **source**: Solana Devnet
+- **destination**: Base Sepolia Testnet
 - **Faucet**: CDP Solana Devnet SOL Faucet
 - **Backup Faucet**: [faucet.solana.com](https://faucet.solana.com)
 
-## 🛠️ Development
+## 🛠️ development
 
-### Project Structure
+### project structure
 
 ```
 sol2base/
@@ -121,7 +119,7 @@ sol2base/
 └── public/                 # Static assets
 ```
 
-### Key Files
+### key files
 
 - `src/lib/bridge.ts` - Main bridge service
 - `src/lib/realBridgeImplementation.ts` - Real bridge transaction logic
@@ -129,39 +127,43 @@ sol2base/
 - `src/lib/addressResolver.ts` - ENS/Basename resolution
 - `src/components/MainContent.tsx` - Main application interface
 
-## 🔐 Security
+## 🔐 security
 
-- **No Private Keys**: Uses wallet adapter for secure signing
-- **Address Validation**: Validates all addresses before transactions
-- **Error Handling**: Comprehensive error handling and user feedback
-- **Rate Limiting**: Respects faucet rate limits
+- **no private keys**: Uses wallet adapter for secure signing
+- **address validation**: Validates all addresses before transactions
+- **error handling**: Comprehensive error handling and user feedback
+- **rate limiting**: Respects faucet rate limits
 
-## 🤝 Contributing
+## 🤝 contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+Feel free to fork & whatever, building in the open here
 
-## 📄 License
+1. fork the repo
+2. create a feature branch: `git checkout -b feature/amazing-feature`
+3. commit your changes: `git commit -m 'Add amazing feature'`
+4. push to the branch: `git push origin feature/amazing-feature`
+5. open a PR
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📄 license
 
-## 🙏 Acknowledgments
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-- [Base](https://base.org) for the bridge infrastructure
-- [Coinbase Developer Platform](https://docs.cdp.coinbase.com) for faucet services
-- [Solana](https://solana.com) for the blockchain infrastructure
+## 🙏 acknowledgments
+
+The Base team that put this together is cracked and it was fucking dope to be at Basecamp in-person when this was announced.
+
+- [Base](https://base.org) for the bridge infra
+- [Coinbase Developer Platform](https://docs.cdp.coinbase.com) for faucet services & general badassery
+- [Solana](https://solana.com) for the blockchain infra
 - The open-source community for the amazing tools and libraries
 
-## 🔗 Links
+## 🔗 links
 
-- **Live Demo**: [Coming Soon]
-- **Base Bridge Docs**: [github.com/base/bridge](https://github.com/base/bridge)
-- **Solana Docs**: [docs.solana.com](https://docs.solana.com)
-- **CDP Docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
+- **Live Demo**: https://sol2base.xyz/
+- **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
+- **Solana docs**: [docs.solana.com](https://docs.solana.com)
+- **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
 
 ---
 
-**"Base is a bridge, not an island"** 🌉
+**"Base is a bridge, not an island." Play positive-sum games, win positive-sum prizes.** 🌉
