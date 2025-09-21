@@ -27,6 +27,7 @@ export class RealBridgeService {
   ): Promise<Transaction> {
     // Validate destination address
     const resolvedAddress = await this.resolveDestinationAddress(destinationAddress);
+    console.log(`Bridge destination resolved to: ${resolvedAddress}`);
     
     // Convert amount to lamports (USDC has 6 decimals)
     const amountLamports = BigInt(Math.floor(amount * Math.pow(10, 6)));

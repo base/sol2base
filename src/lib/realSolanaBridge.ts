@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Transaction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
 import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG } from './constants';
 
 /**
@@ -29,7 +29,8 @@ export class RealSolanaBridge {
       if (balance < Number(amountLamports)) {
         throw new Error(`Insufficient SOL balance. You have ${balance / 1e9} SOL but trying to bridge ${amount} SOL.`);
       }
-    } catch (error) {
+    } catch (err) {
+      console.error('Balance check error:', err);
       throw new Error('Error checking SOL balance. Please try again.');
     }
 
@@ -164,6 +165,7 @@ export class RealSolanaBridge {
     baseTransactionHash?: string;
     estimatedCompletionTime?: number;
   }> {
+    console.log(`Monitoring bridge status for ${solanaSignature} to ${destinationAddress}`);
     // This would monitor the bridge validators and check for completion on Base
     // For now, return pending status with estimated completion time
     

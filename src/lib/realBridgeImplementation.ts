@@ -238,7 +238,11 @@ export class RealBridgeImplementation {
   /**
    * Monitor bridge status
    */
-  async monitorBridgeStatus(solanaTxHash: string, destinationAddress: string): Promise<any> {
+  async monitorBridgeStatus(solanaTxHash: string, destinationAddress: string): Promise<{
+    status: 'pending' | 'confirmed' | 'relayed' | 'completed';
+    baseTransactionHash?: string;
+    estimatedCompletionTime?: number;
+  }> {
     console.log(`Monitoring bridge transaction: ${solanaTxHash}`);
     
     // Simulate monitoring - in real implementation this would:
