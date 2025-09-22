@@ -6,6 +6,7 @@
 
 <div align="center">
   <h3>Bridge SOL from Solana Devnet to Base Sepolia testnet</h3>
+  <h4><i>Uses the official Base Bridge launched at Basecamp on 15 Sep 2025</i></h4>
 </div>
 
 <div align="center">
