@@ -5,7 +5,7 @@
 </div>
 
 <div align="center">
-  <h3>A Solana to Base bridge application that enables seamless SOL transfers from Solana Devnet to Base Sepolia testnet.</h3>
+  <h3>Bridge SOL from Solana Devnet to Base Sepolia testnet</h3>
 </div>
 
 <div align="center">
@@ -16,12 +16,11 @@
 
 ## 🌉 features
 
-- **Bridge functionality**: SOL bridging from Solana Devnet to Base Sepolia
-- **CDP Faucet integration**: Get SOL from Coinbase Developer Platform
+- **Bridge**: SOL bridging from Solana Devnet to Base Sepolia
+- **Faucet**: Get SOL from Coinbase Developer Platform
 - **Address resolution**: Support for ENS names and Basenames
-- **Real-time balance**: Live SOL balance tracking for connected wallet
-- **Transaction status**: Complete bridge transaction history and status monitoring (to the Solana Devnet side; as of 9/20/25 seems to be some bridge infra issue on the Base Sepolia side)
-- **Responsive design**: Clean, modern interface that works on all devices
+- **Balance**: Live SOL balance tracking for connected wallet
+- **Txn status**: Complete bridge transaction history and status monitoring
 
 ## 🚀 quickstart
 
@@ -67,9 +66,9 @@ npm run dev
 ### Bridge process
 
 1. **connect wallet**: Connect Solana wallet (Phantom/Solflare)
-2. **get SOL**: Use the integrated CDP Faucet to get SOL on Solana Devnet
+2. **get SOL**: Use the integrated CDP Faucet to get SOL on Solana Devnet if needed
 3. **enter details**: Specify amount and destination (Base Sepolia address, ENS, or Basename)
-4. **Bridge!**: Execute the bridge txn
+4. **Bridge!** Execute the bridge txn
 5. **monitor**: Track txn status in real-time
 
 ### architecture
@@ -122,10 +121,10 @@ sol2base/
 ### key files
 
 - `src/lib/bridge.ts` - Main bridge service
-- `src/lib/realBridgeImplementation.ts` - Real bridge transaction logic
+- `src/lib/realBridgeImplementation.ts` - Bridge txn logic
 - `src/lib/cdpFaucet.ts` - CDP faucet integration
 - `src/lib/addressResolver.ts` - ENS/Basename resolution
-- `src/components/MainContent.tsx` - Main application interface
+- `src/components/MainContent.tsx` - Main app interface
 
 ## 🔐 security
 
@@ -155,15 +154,19 @@ The Base team that put this together is cracked and it was fucking dope to be at
 - [Base](https://base.org) for the bridge infra
 - [Coinbase Developer Platform](https://docs.cdp.coinbase.com) for faucet services & general badassery
 - [Solana](https://solana.com) for the blockchain infra
-- The open-source community for the amazing tools and libraries
+- The open-source community for the amazing tools and libraries used along the way
 
-## 🔗 links
+## 🔗 links & useful onchain addresses
 
 - **Live Demo**: https://sol2base.xyz/
 - **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
 - **Solana docs**: [docs.solana.com](https://docs.solana.com)
 - **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
+- Bridge program on Solana Devnet: 83hN2esneZUbKgLfUvo7uzas4g7kyiodeNKAqZgx5MbH
+- Bridge contract on Base Sepolia: 0x5961B1579913632c91c8cdC771cF48251A4B54F0
+- Wrapped SOL token CA on Base Sepolia: 0x70445da14e089424E5f7Ab6d3C22F5Fadeb619Ca
+- Gas fee receiver address expected by Bridge program & Base Relayer program: BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F
 
 ---
 
-**"Base is a bridge, not an island." Play positive-sum games, win positive-sum prizes.** 🌉
+**"Base is a bridge, not an island."**  🌉 Play positive-sum games, win positive-sum prizes.
