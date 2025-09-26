@@ -163,8 +163,10 @@ The Base team that put this together is cracked and it was fucking dope to be at
 - **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
 - **Solana docs**: [docs.solana.com](https://docs.solana.com)
 - **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
-- Bridge program on Solana Devnet: 83hN2esneZUbKgLfUvo7uzas4g7kyiodeNKAqZgx5MbH
-- Bridge contract on Base Sepolia: 0x5961B1579913632c91c8cdC771cF48251A4B54F0
+- Bridge program on Solana Devnet: HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc
+- Base Relayer program on Solana Devnet: ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL
+- Bridge contract on Base Sepolia: 0x3154Cf16ccdb4C6d922629664174b904d80F2C35
+- Bridge Validator on Base Sepolia: 0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7
 - Wrapped SOL token CA on Base Sepolia: 0x70445da14e089424E5f7Ab6d3C22F5Fadeb619Ca
 - Gas fee receiver address expected by Bridge program & Base Relayer program: BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F
 
