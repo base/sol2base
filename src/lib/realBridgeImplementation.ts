@@ -7,9 +7,8 @@ import {
   SystemProgram,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { waitAndExecuteOnBase } from '../../bridge-solana/scripts/utils/waitAndExecuteOnBase';
-import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG } from './constants';
-import { deriveOutgoingMessagePda, deriveMessageToRelayPda } from './pdas';
+import { deriveOutgoingMessagePda, deriveMessageToRelayPda, normalizeSalt } from './pdas';
+import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG, DEFAULT_GAS_LIMIT, REMOTE_WSOL_ADDR_HEX } from './constants';
 
 /**
  * Real Bridge Implementation using standard Solana libraries
@@ -52,8 +51,8 @@ export class RealBridgeImplementation {
         this.bridgeProgramId
       );
 
-      // Calculate SOL vault PDA
-      const remoteTokenBytes = this.addressToBytes20(BASE_SEPOLIA_CONFIG.wrappedSOL);
+      // Calculate SOL vault PDA using current WSOL address
+      const remoteTokenBytes = this.addressToBytes20(REMOTE_WSOL_ADDR_HEX);
       const [solVaultAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("sol_vault"), // SOL_VAULT_SEED from IDL constants
@@ -62,27 +61,32 @@ export class RealBridgeImplementation {
         this.bridgeProgramId
       );
 
-      // Generate unique salts for PDAs
-      const outgoingMessageSalt = new Uint8Array(32);
-      crypto.getRandomValues(outgoingMessageSalt);
-      const [outgoingMessagePda] = deriveOutgoingMessagePda(
-        this.bridgeProgramId,
-        outgoingMessageSalt
-      );
+      // **CRITICAL FIX**: Use SINGLE 32-byte salt for BOTH PDAs (v0.3.0 requirement)
+      const salt32 = new Uint8Array(32);
+      crypto.getRandomValues(salt32);
+      const saltBuffer = normalizeSalt(salt32);
+      
+      // Derive PDAs using the SAME salt
+      const outgoingMessagePda = deriveOutgoingMessagePda(saltBuffer);
+      const messageToRelayPda = deriveMessageToRelayPda(saltBuffer);
 
-      const messageToRelaySalt = new Uint8Array(32);
-      crypto.getRandomValues(messageToRelaySalt);
-      const [messageToRelayPda] = deriveMessageToRelayPda(
-        this.baseRelayerProgramId,
-        messageToRelaySalt
-      );
-
+      // **CRITICAL DIAGNOSTICS**: Show exactly what relayer will see
+      console.info("[sol2base] env=devnet-prod");
+      console.info("[sol2base] salt32:", "0x" + saltBuffer.toString("hex"));
+      console.info("[sol2base] outgoingMessagePDA:", outgoingMessagePda.toBase58());
+      console.info("[sol2base] messageToRelayPDA:", messageToRelayPda.toBase58());
+      console.info("[sol2base] to:", destinationAddress.toLowerCase());
+      console.info("[sol2base] remoteToken:", REMOTE_WSOL_ADDR_HEX);
+      console.info("[sol2base] remoteToken20bytes:", "0x" + remoteTokenBytes.toString("hex"));
+      console.info("[sol2base] gasLimit:", DEFAULT_GAS_LIMIT.toString());
+      console.info("[sol2base] usingExplicitWSOL:", !!process.env.NEXT_PUBLIC_BASE_WSOL);
+      
       console.log(`Bridge Program ID: ${this.bridgeProgramId.toString()}`);
       console.log(`Bridge Address: ${bridgeAddress.toString()}`);
       console.log(`SOL Vault: ${solVaultAddress.toString()}`);
       console.log(`Outgoing Message PDA: ${outgoingMessagePda.toString()}`);
       console.log(`Destination: ${destinationAddress}`);
-      console.log(`Wrapped SOL: ${BASE_SEPOLIA_CONFIG.wrappedSOL}`);
+      console.log(`Wrapped SOL: ${REMOTE_WSOL_ADDR_HEX}`);
 
       // Fetch bridge state for gas fee receiver
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
@@ -120,11 +124,11 @@ export class RealBridgeImplementation {
           cfg: cfgAddress,
           gasFeeReceiver,
           messageToRelay: messageToRelayPda,
-          messageToRelaySalt,
-          outgoingMessageSalt,
+          messageToRelaySalt: saltBuffer,
+          outgoingMessageSalt: saltBuffer,
           systemProgram: SystemProgram.programId,
           outgoingMessage: outgoingMessagePda,
-          gasLimit: BigInt(200_000),
+          gasLimit: DEFAULT_GAS_LIMIT,
         });
 
         const bridgeInstruction = this.createBridgeSolInstruction({
@@ -134,10 +138,10 @@ export class RealBridgeImplementation {
           solVault: solVaultAddress,
           bridge: bridgeAddress,
           outgoingMessage: outgoingMessagePda,
-          outgoingMessageSalt,
+          outgoingMessageSalt: saltBuffer,
           systemProgram: SystemProgram.programId,
           to: destinationAddress,
-          remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
+          remoteToken: REMOTE_WSOL_ADDR_HEX,
           amount: amountLamports,
         });
 
@@ -190,8 +194,8 @@ export class RealBridgeImplementation {
     cfg: PublicKey;
     gasFeeReceiver: PublicKey;
     messageToRelay: PublicKey;
-    messageToRelaySalt: Uint8Array;
-    outgoingMessageSalt: Uint8Array;
+    messageToRelaySalt: Buffer;
+    outgoingMessageSalt: Buffer;
     systemProgram: PublicKey;
     outgoingMessage: PublicKey;
     gasLimit: bigint;
@@ -207,7 +211,7 @@ export class RealBridgeImplementation {
     discriminator.copy(data, offset);
     offset += 8;
 
-    Buffer.from(messageToRelaySalt).copy(data, offset);
+    messageToRelaySalt.copy(data, offset);
     offset += 32;
 
     const outgoingMessageBytes = outgoingMessage.toBuffer();
@@ -265,7 +269,7 @@ export class RealBridgeImplementation {
     solVault: PublicKey;
     bridge: PublicKey;
     outgoingMessage: PublicKey;
-    outgoingMessageSalt: Uint8Array;
+    outgoingMessageSalt: Buffer;
     systemProgram: PublicKey;
     to: string;
     remoteToken: string;
@@ -284,7 +288,7 @@ export class RealBridgeImplementation {
     discriminator.copy(data, offset);
     offset += 8;
 
-    Buffer.from(outgoingMessageSalt).copy(data, offset);
+    outgoingMessageSalt.copy(data, offset);
     offset += 32;
 
     toBytes.copy(data, offset);

@@ -1,35 +1,50 @@
 import { PublicKey } from '@solana/web3.js';
 
-// Base Sepolia (testnet) configuration
+// Base Sepolia (testnet) configuration for devnet-prod bridge
+export const SOLANA_CLUSTER: "devnet" = "devnet";
+export const BASE_NETWORK = "base-sepolia";
+
+// WSOL address for devnet-prod deployment (verified working)
+// Use env var to override if needed for different environments
+export const REMOTE_WSOL_ADDR_HEX = 
+  (process.env.NEXT_PUBLIC_BASE_WSOL || "0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD").toLowerCase();
+
+console.log("🔧 Using Base WSOL address:", REMOTE_WSOL_ADDR_HEX);
+if (!process.env.NEXT_PUBLIC_BASE_WSOL) {
+  console.log("✅ Using verified working WSOL address for devnet-prod");
+}
+
 export const BASE_SEPOLIA_CONFIG = {
   chainId: 84532,
   name: 'Base Sepolia',
   rpcUrl: 'https://sepolia.base.org',
   blockExplorer: 'https://sepolia.basescan.org',
   
-  // Contract addresses from the bridge deployment
-  bridge: '0x5961B1579913632c91c8cdC771cF48251A4B54F0',
-  bridgeValidator: '0xc317307EfC64e39B1ec2ADAf507a64f8276263cF',
-  crossChainERC20Factory: '0xeeD08a362fc4254864Dce24F7b5dDAD4efaC07d3',
-  twin: '0xB2043e842f6C11c21cF2A3F5bb5Fe3f892F1f5B8',
-  relayerOrchestrator: '0x73f76f6385855B52Fd10D320191100278110E3D8',
+  // Contract addresses from devnet-prod bridge deployment
+  bridge: '0x3154Cf16ccdb4C6d922629664174b904d80F2C35',
+  bridgeValidator: '0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7',
   
   // Token addresses
-  wrappedSOL: '0x70445da14e089424E5f7Ab6d3C22F5Fadeb619Ca',
-  wrappedSPL: '0x4752285a93F5d0756bB2D6ed013b40ea8527a8DA',
-  erc20: '0x62C1332822983B8412A6Ffda0fd77cd7d5733Ee9', // Test USDC
+  wrappedSOL: REMOTE_WSOL_ADDR_HEX,
 };
 
-// Solana Devnet configuration
+// Solana Devnet configuration (devnet-prod deployment)
+export const BRIDGE_PROGRAM_ID = "HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc";
+export const RELAYER_PROGRAM_ID = "ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL";
+export const GAS_FEE_RECEIVER = "BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F";
+
+// Standard gas limit for bridge operations
+export const DEFAULT_GAS_LIMIT = BigInt(process.env.NEXT_PUBLIC_GAS_LIMIT ?? "200000");
+
 export const SOLANA_DEVNET_CONFIG = {
   name: 'Solana Devnet',
   rpcUrl: 'https://api.devnet.solana.com',
   blockExplorer: 'https://explorer.solana.com',
   
-  // Program addresses from the bridge deployment
-  solanaBridge: new PublicKey('HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc'),
-  baseRelayerProgram: new PublicKey('ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL'),
-  gasFeeReceiver: new PublicKey('BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F'),
+  // Program addresses from devnet-prod bridge deployment  
+  solanaBridge: new PublicKey(BRIDGE_PROGRAM_ID),
+  baseRelayerProgram: new PublicKey(RELAYER_PROGRAM_ID),
+  gasFeeReceiver: new PublicKey(GAS_FEE_RECEIVER),
   
   // Token addresses
   cdpUsdc: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'), // CDP USDC on Solana Devnet

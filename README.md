@@ -167,7 +167,7 @@ The Base team that put this together is cracked and it was fucking dope to be at
 - Base Relayer program on Solana Devnet: ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL
 - Bridge contract on Base Sepolia: 0x3154Cf16ccdb4C6d922629664174b904d80F2C35
 - Bridge Validator on Base Sepolia: 0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7
-- Wrapped SOL token CA on Base Sepolia: 0x70445da14e089424E5f7Ab6d3C22F5Fadeb619Ca
+- Wrapped SOL token CA on Base Sepolia: 0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD
 - Gas fee receiver address expected by Bridge program & Base Relayer program: BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F
 
 ---

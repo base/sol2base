@@ -107,6 +107,14 @@ export class SolanaBridge {
 
     console.log(`REAL bridge transaction submitted: ${signature}`);
     
+    // **HANDOFF BUNDLE** for Base team debugging
+    console.info("=== HANDOFF BUNDLE FOR BASE TEAM ===");
+    console.info("Environment: devnet-prod");
+    console.info("Solana tx:", signature);
+    console.info("Expected Base registration event should contain OutgoingMessage PDA");
+    console.info("If no Base event with this PDA, likely indexer/registry issue");
+    console.info("===================================");
+    
     return signature;
   }
 
