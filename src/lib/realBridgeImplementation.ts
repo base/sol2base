@@ -1,13 +1,15 @@
-import { 
-  Connection, 
-  PublicKey, 
-  Transaction, 
+import {
+  Connection,
+  PublicKey,
+  Transaction,
   TransactionInstruction,
   LAMPORTS_PER_SOL,
   SystemProgram,
-  Keypair
 } from '@solana/web3.js';
+import bs58 from 'bs58';
+import { waitAndExecuteOnBase } from '../../bridge-solana/scripts/utils/waitAndExecuteOnBase';
 import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG } from './constants';
+import { deriveOutgoingMessagePda, deriveMessageToRelayPda } from './pdas';
 
 /**
  * Real Bridge Implementation using standard Solana libraries
@@ -60,171 +62,110 @@ export class RealBridgeImplementation {
         this.bridgeProgramId
       );
 
-      // Create outgoing message keypair
-      const outgoingMessageKeypair = Keypair.generate();
+      // Generate unique salts for PDAs
+      const outgoingMessageSalt = new Uint8Array(32);
+      crypto.getRandomValues(outgoingMessageSalt);
+      const [outgoingMessagePda] = deriveOutgoingMessagePda(
+        this.bridgeProgramId,
+        outgoingMessageSalt
+      );
+
+      const messageToRelaySalt = new Uint8Array(32);
+      crypto.getRandomValues(messageToRelaySalt);
+      const [messageToRelayPda] = deriveMessageToRelayPda(
+        this.baseRelayerProgramId,
+        messageToRelaySalt
+      );
 
       console.log(`Bridge Program ID: ${this.bridgeProgramId.toString()}`);
       console.log(`Bridge Address: ${bridgeAddress.toString()}`);
       console.log(`SOL Vault: ${solVaultAddress.toString()}`);
-      console.log(`Outgoing Message: ${outgoingMessageKeypair.publicKey.toString()}`);
+      console.log(`Outgoing Message PDA: ${outgoingMessagePda.toString()}`);
       console.log(`Destination: ${destinationAddress}`);
       console.log(`Wrapped SOL: ${BASE_SEPOLIA_CONFIG.wrappedSOL}`);
 
-      // Fetch the bridge state to get the gas fee receiver
+      // Fetch bridge state for gas fee receiver
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {
         throw new Error('Bridge account not found. The bridge may not be initialized on Solana Devnet.');
       }
 
-      // Use the actual gas fee receiver from the bridge deployment
-      // This is the address the bridge program expects for gas fee collection
-      let gasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
-      
+      const gasFeeReceiver = SOLANA_DEVNET_CONFIG.gasFeeReceiver;
       console.log(`Gas Fee Receiver: ${gasFeeReceiver.toString()} (bridge operator's address)`);
 
-      // Create message to relay keypair
-      const messageToRelayKeypair = Keypair.generate();
-
-      // Calculate relayer config PDA using correct CFG_SEED
+      // Derive relayer config PDA
       const [cfgAddress] = PublicKey.findProgramAddressSync(
-        [Buffer.from("config")], // CFG_SEED = "config" 
+        [Buffer.from('config')],
         this.baseRelayerProgramId
       );
 
-      console.log(`Relayer Config: ${cfgAddress.toString()}`);
-      console.log(`Message To Relay: ${messageToRelayKeypair.publicKey.toString()}`);
+      console.log(`Relayer Config PDA: ${cfgAddress.toString()}`);
+      console.log(`Message To Relay PDA: ${messageToRelayPda.toString()}`);
 
-      // Create transaction first
+      // Build transaction
       const transaction = new Transaction();
       const { blockhash } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = walletAddress;
 
-      // Enable relay payment to debug gas fee receiver issue
-      console.log('🚀 ATTEMPTING COMPLETE BRIDGE with pay_for_relay instruction');
-      console.log('🔄 This will test the full bridge functionality with relay payment');
-      
       try {
-        // Enable relay payment with enhanced debugging
-        const skipRelayPayment = false; // Enable relay payment to debug gas fee receiver issue
-        if (skipRelayPayment) {
-          console.log('🔄 Skipping relay payment - testing bridge-only functionality');
-          throw new Error('Skipping relay payment for testing');
-        }
-        
         const cfgAccountInfo = await this.connection.getAccountInfo(cfgAddress);
         if (!cfgAccountInfo) {
           console.log('❌ Relayer config account does not exist:', cfgAddress.toString());
           throw new Error('Base relayer config account not found. Bridge may not be fully initialized.');
         }
-        
-        console.log('✅ Relayer config account found:', cfgAddress.toString());
-        console.log('📊 Config account data length:', cfgAccountInfo.data.length);
-        console.log('🏦 Config account owner:', cfgAccountInfo.owner.toString());
-        
-        // Extract the ACTUAL gas fee receiver from the relayer config account data
-        // The config account stores the gas fee receiver that the relayer program expects
-        let actualRelayerGasFeeReceiver;
-        
-        try {
-          // Parse the config account data to extract gas fee receiver
-          // Based on the account structure, gas fee receiver should be at a specific offset
-          if (cfgAccountInfo.data.length >= 168) {
-            // Try different offsets to find the correct gas fee receiver
-            const offset1 = new PublicKey(cfgAccountInfo.data.slice(88, 120)); // bytes 88-120
-            const offset2 = new PublicKey(cfgAccountInfo.data.slice(120, 152)); // bytes 120-152
-            
-            console.log('🔍 Config gas fee receiver option 1 (offset 88):', offset1.toString());
-            console.log('🔍 Config gas fee receiver option 2 (offset 120):', offset2.toString());
-            
-            // Based on error logs, the program ACTUALLY expects the bridge gas fee receiver
-            console.log('🧪 Program expects bridge gas fee receiver for relay payment too!');
-            actualRelayerGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
-            
-            console.log('🔧 Using bridge gas fee receiver for BOTH instructions');
-          } else {
-            actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
-          }
-        } catch (error) {
-          console.error('Error parsing config account:', error);
-          actualRelayerGasFeeReceiver = new PublicKey("5K2bpN9XzNtiqviHFh3HMtPutq7MW2FzoEaHJiWbKBSX");
-        }
-        
-        const bridgeGasFeeReceiver = new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F");
-        
-        console.log('🏦 Final relay gas fee receiver:', actualRelayerGasFeeReceiver.toString());
-        console.log('🌉 Bridge gas fee receiver:', bridgeGasFeeReceiver.toString());
-        
-        // Create the pay_for_relay instruction with our manual implementation
-        // The issue might be deeper than instruction encoding
-        console.log('🔧 Creating PayForRelay with manual implementation');
-        console.log('🔧 Using gas fee receiver from config offset 88:', actualRelayerGasFeeReceiver.toString());
-        
+
         const relayInstruction = this.createPayForRelayInstruction({
           payer: walletAddress,
           cfg: cfgAddress,
-          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use address from config data
-          messageToRelay: messageToRelayKeypair.publicKey,
+          gasFeeReceiver,
+          messageToRelay: messageToRelayPda,
+          messageToRelaySalt,
+          outgoingMessageSalt,
           systemProgram: SystemProgram.programId,
-          outgoingMessage: outgoingMessageKeypair.publicKey,
+          outgoingMessage: outgoingMessagePda,
           gasLimit: BigInt(200_000),
         });
-        
-        console.log('🔍 Created relay instruction with', relayInstruction.keys.length, 'accounts');
-        console.log('🔍 Relay instruction gas fee receiver (account 2):', relayInstruction.keys[2].pubkey.toString());
 
-        // Create the bridge_sol instruction with SAME gas fee receiver as relay
         const bridgeInstruction = this.createBridgeSolInstruction({
           payer: walletAddress,
           from: walletAddress,
-          gasFeeReceiver: actualRelayerGasFeeReceiver, // Use SAME address as relay
+          gasFeeReceiver,
           solVault: solVaultAddress,
           bridge: bridgeAddress,
-          outgoingMessage: outgoingMessageKeypair.publicKey,
+          outgoingMessage: outgoingMessagePda,
+          outgoingMessageSalt,
           systemProgram: SystemProgram.programId,
           to: destinationAddress,
           remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
           amount: amountLamports,
         });
-        
-        // Add BOTH instructions - relay payment first, then bridge
-        console.log('🔄 Adding pay_for_relay instruction...');
+
         transaction.add(relayInstruction);
-        
-        console.log('🔄 Adding bridge_sol instruction...');
         transaction.add(bridgeInstruction);
 
-        // Partial sign with both keypairs
-        transaction.partialSign(messageToRelayKeypair, outgoingMessageKeypair);
-        
-        console.log('✅ Transaction built with both instructions');
-        
       } catch (error) {
         console.error('❌ Error with relay payment, falling back to bridge-only:', error);
-        
-        // Create fallback bridge instruction with original gas fee receiver
+
         const fallbackBridgeInstruction = this.createBridgeSolInstruction({
           payer: walletAddress,
           from: walletAddress,
-          gasFeeReceiver: new PublicKey("BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F"), // Use bridge gas fee receiver
+          gasFeeReceiver,
           solVault: solVaultAddress,
           bridge: bridgeAddress,
-          outgoingMessage: outgoingMessageKeypair.publicKey,
+          outgoingMessage: outgoingMessagePda,
+          outgoingMessageSalt,
           systemProgram: SystemProgram.programId,
           to: destinationAddress,
           remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
           amount: amountLamports,
         });
-        
-        // Fallback: just bridge instruction if relay payment fails
+
         transaction.add(fallbackBridgeInstruction);
-        transaction.partialSign(outgoingMessageKeypair);
-        
-        console.log('⚠️  Using bridge_sol only as fallback');
       }
 
       return transaction;
-      
+
     } catch (error) {
       console.error('Error creating bridge transaction:', error);
       throw error;
@@ -239,6 +180,8 @@ export class RealBridgeImplementation {
     cfg,
     gasFeeReceiver,
     messageToRelay,
+    messageToRelaySalt,
+    outgoingMessageSalt,
     systemProgram,
     outgoingMessage,
     gasLimit,
@@ -247,49 +190,50 @@ export class RealBridgeImplementation {
     cfg: PublicKey;
     gasFeeReceiver: PublicKey;
     messageToRelay: PublicKey;
+    messageToRelaySalt: Uint8Array;
+    outgoingMessageSalt: Uint8Array;
     systemProgram: PublicKey;
     outgoingMessage: PublicKey;
     gasLimit: bigint;
   }): TransactionInstruction {
-    
+
     // pay_for_relay discriminator
     const discriminator = Buffer.from([41, 191, 218, 201, 250, 164, 156, 55]);
-    
-    // Create instruction data using proper encoding format
-    // Based on generated client: discriminator + outgoingMessage (Address) + gasLimit (u64)
-    const data = Buffer.alloc(8 + 32 + 8); // discriminator + address + u64
+
+    // Instruction data: discriminator + mtrSalt + outgoingMessage + gasLimit
+    const data = Buffer.alloc(8 + 32 + 32 + 8);
     let offset = 0;
-    
-    // Write discriminator (8 bytes)
+
     discriminator.copy(data, offset);
     offset += 8;
-    
-    // Write outgoing message address (32 bytes) - Solana address format
+
+    Buffer.from(messageToRelaySalt).copy(data, offset);
+    offset += 32;
+
     const outgoingMessageBytes = outgoingMessage.toBuffer();
     outgoingMessageBytes.copy(data, offset);
     offset += 32;
-    
-    // Write gas limit (8 bytes, little-endian u64)
+
     data.writeBigUInt64LE(gasLimit, offset);
-    
+
     console.log('🔍 PayForRelay instruction data length:', data.length);
     console.log('🔍 PayForRelay discriminator:', Array.from(discriminator));
     console.log('🔍 PayForRelay outgoing message:', outgoingMessage.toString());
     console.log('🔍 PayForRelay gas limit:', gasLimit.toString());
-    
+
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: cfg, isSigner: false, isWritable: true },
       { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
-      { pubkey: messageToRelay, isSigner: true, isWritable: true },
+      { pubkey: messageToRelay, isSigner: false, isWritable: true },
       { pubkey: systemProgram, isSigner: false, isWritable: false },
     ];
-    
+
     console.log('🔍 PayForRelay accounts:');
     console.log('  [0] payer:', payer.toString(), '(signer, writable)');
     console.log('  [1] cfg:', cfg.toString(), '(writable)');
     console.log('  [2] gasFeeReceiver:', gasFeeReceiver.toString(), '(writable) ⚠️ THIS IS THE CRITICAL ONE');
-    console.log('  [3] messageToRelay:', messageToRelay.toString(), '(signer, writable)');
+    console.log('  [3] messageToRelay:', messageToRelay.toString(), '(writable)');
     console.log('  [4] systemProgram:', systemProgram.toString(), '(readonly)');
 
     return new TransactionInstruction({
@@ -309,6 +253,7 @@ export class RealBridgeImplementation {
     solVault,
     bridge,
     outgoingMessage,
+    outgoingMessageSalt,
     systemProgram,
     to,
     remoteToken,
@@ -320,52 +265,46 @@ export class RealBridgeImplementation {
     solVault: PublicKey;
     bridge: PublicKey;
     outgoingMessage: PublicKey;
+    outgoingMessageSalt: Uint8Array;
     systemProgram: PublicKey;
     to: string;
     remoteToken: string;
     amount: bigint;
   }): TransactionInstruction {
-    
-    // bridge_sol discriminator from IDL
+
     const discriminator = Buffer.from([190, 190, 32, 158, 75, 153, 32, 86]);
-    
-    // Convert destination address to 20 bytes
+
     const toBytes = this.addressToBytes20(to);
-    
-    // Convert remote token address to 20 bytes  
     const remoteTokenBytes = this.addressToBytes20(remoteToken);
-    
-    // Create instruction data
-    const data = Buffer.alloc(8 + 20 + 20 + 8 + 1); // discriminator + to + remoteToken + amount + call_option
+
+    // Instruction data: discriminator + salt + to + remoteToken + amount + call_option
+    const data = Buffer.alloc(8 + 32 + 20 + 20 + 8 + 1);
     let offset = 0;
-    
-    // Write discriminator
+
     discriminator.copy(data, offset);
     offset += 8;
-    
-    // Write 'to' address (20 bytes)
+
+    Buffer.from(outgoingMessageSalt).copy(data, offset);
+    offset += 32;
+
     toBytes.copy(data, offset);
     offset += 20;
-    
-    // Write remote token address (20 bytes)
+
     remoteTokenBytes.copy(data, offset);
     offset += 20;
-    
-    // Write amount (8 bytes, little-endian u64)
+
     data.writeBigUInt64LE(amount, offset);
     offset += 8;
-    
-    // Write call option (None = 0)
+
     data.writeUInt8(0, offset);
 
-    // Create accounts array
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
-      { pubkey: from, isSigner: false, isWritable: true }, // from is same as payer, already signed
+      { pubkey: from, isSigner: false, isWritable: true },
       { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
       { pubkey: solVault, isSigner: false, isWritable: true },
       { pubkey: bridge, isSigner: false, isWritable: true },
-      { pubkey: outgoingMessage, isSigner: true, isWritable: true },
+      { pubkey: outgoingMessage, isSigner: false, isWritable: true },
       { pubkey: systemProgram, isSigner: false, isWritable: false },
     ];
 
@@ -383,17 +322,17 @@ export class RealBridgeImplementation {
     try {
       // Remove 0x prefix if present
       const cleanAddress = address.startsWith('0x') ? address.slice(2) : address;
-      
+
       // Ensure it's exactly 40 hex characters (20 bytes)
       if (cleanAddress.length !== 40) {
         throw new Error(`Invalid Ethereum address length: expected 40 hex chars, got ${cleanAddress.length}`);
       }
-      
+
       // Validate hex characters
       if (!/^[0-9a-fA-F]{40}$/.test(cleanAddress)) {
         throw new Error(`Invalid Ethereum address format: contains non-hex characters`);
       }
-      
+
       return Buffer.from(cleanAddress, 'hex');
     } catch (error) {
       console.error(`Error converting address ${address}:`, error);
@@ -412,8 +351,38 @@ export class RealBridgeImplementation {
     // Sign the transaction with the user's wallet
     const signedTransaction = await signTransaction(transaction);
 
-    // Send the signed transaction
-    const signature = await this.connection.sendRawTransaction(signedTransaction.serialize());
+    const serialized = signedTransaction.serialize();
+
+    const primarySignature = signedTransaction.signatures[0]?.signature
+      ? bs58.encode(signedTransaction.signatures[0].signature as Buffer)
+      : undefined;
+
+    let signature: string | undefined;
+
+    try {
+      // Send the signed transaction
+      signature = await this.connection.sendRawTransaction(serialized, {
+        skipPreflight: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const isAlreadyProcessed = message.includes('already been processed');
+
+      if (isAlreadyProcessed && primarySignature) {
+        console.warn('⚠️ Transaction already processed, reusing existing signature');
+        signature = primarySignature;
+      } else {
+        throw error;
+      }
+    }
+
+    if (!signature) {
+      if (primarySignature) {
+        signature = primarySignature;
+      } else {
+        throw new Error('Unable to determine transaction signature');
+      }
+    }
 
     // Confirm transaction
     await this.connection.confirmTransaction(signature, 'confirmed');
@@ -421,31 +390,6 @@ export class RealBridgeImplementation {
     return signature;
   }
 
-  /**
-   * Monitor bridge status
-   */
-  async monitorBridgeStatus(solanaTxHash: string, destinationAddress: string): Promise<{
-    status: 'pending' | 'confirmed' | 'relayed' | 'completed';
-    baseTransactionHash?: string;
-    estimatedCompletionTime?: number;
-  }> {
-    console.log(`Monitoring bridge transaction: ${solanaTxHash}`);
-    
-    // Simulate monitoring - in real implementation this would:
-    // 1. Check Solana transaction status
-    // 2. Monitor Base relayer for message processing
-    // 3. Check Base Sepolia for completion
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockBaseTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-        resolve({
-          status: 'completed',
-          baseTransactionHash: mockBaseTxHash,
-          message: `Bridge completed to ${destinationAddress}`,
-        });
-      }, 2000);
-    });
-  }
 }
 
 export const realBridgeImplementation = new RealBridgeImplementation();

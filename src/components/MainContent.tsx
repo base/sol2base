@@ -16,6 +16,7 @@ export interface BridgeTransaction {
   timestamp: number;
   type: 'bridge' | 'faucet';
   baseTransactionHash?: string;
+  baseTxHash?: string;
   estimatedCompletionTime?: number;
 }
 

@@ -27,8 +27,9 @@ export const SOLANA_DEVNET_CONFIG = {
   blockExplorer: 'https://explorer.solana.com',
   
   // Program addresses from the bridge deployment
-  solanaBridge: new PublicKey('83hN2esneZUbKgLfUvo7uzas4g7kyiodeNKAqZgx5MbH'),
-  baseRelayerProgram: new PublicKey('J29jxzRsQmkpxkJptuaxYXgyNqjFZErxXtDWQ4ma3k51'),
+  solanaBridge: new PublicKey('HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc'),
+  baseRelayerProgram: new PublicKey('ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL'),
+  gasFeeReceiver: new PublicKey('BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F'),
   
   // Token addresses
   cdpUsdc: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'), // CDP USDC on Solana Devnet

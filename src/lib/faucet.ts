@@ -25,8 +25,7 @@ export class MockFaucetService {
       // 3. Return the transaction hash
       
       // For demo purposes, add tokens to mock balance service
-      const { mockBalanceService } = await import('./mockBalances');
-      mockBalanceService.addUsdcTokens(walletAddress, amount);
+      // Mock balance service removed for cleanup
       
       // For now, we'll simulate a successful faucet request
       const mockTxHash = this.generateMockTxHash();

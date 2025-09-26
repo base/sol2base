@@ -72,3 +72,4 @@ export const UsdcMintWarning: React.FC<UsdcMintWarningProps> = ({
     </div>
   );
 };
+

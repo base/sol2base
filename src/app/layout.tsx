@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: "sol2base - Solana to Base Bridge",
   description: "Bridge SOL from Solana Devnet to Base Sepolia using the official Base/Solana bridge. Hacker-themed UI with real cross-chain functionality.",
   icons: {

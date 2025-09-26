@@ -107,15 +107,6 @@ export class SolanaBridge {
 
     console.log(`REAL bridge transaction submitted: ${signature}`);
     
-    // Start monitoring bridge status
-    realBridgeImplementation.monitorBridgeStatus(signature, resolvedAddress)
-      .then(status => {
-        console.log(`Bridge status update:`, status);
-      })
-      .catch(error => {
-        console.error('Bridge monitoring error:', error);
-      });
-
     return signature;
   }
 

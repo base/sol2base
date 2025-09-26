@@ -5,3 +5,4 @@ bridge-contracts/**/*
 bridge-solana/**/*
 .next/**/*
 node_modules/**/*
+

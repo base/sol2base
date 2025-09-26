@@ -167,11 +167,7 @@ export const BridgeInterface: React.FC = () => {
 
       setTransactions(prev => [newTransaction, ...prev]);
 
-      // If using mock faucet, update mock balances
-      if (data.note && data.note.includes('Mock faucet')) {
-        const { mockBalanceService } = await import('../lib/mockBalances');
-        mockBalanceService.addUsdcTokens(publicKey, data.amount);
-      }
+      // Mock balance service removed for cleanup
 
       // Reload balances after a short delay
       setTimeout(async () => {

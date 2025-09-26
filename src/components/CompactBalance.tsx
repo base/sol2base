@@ -4,10 +4,27 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { solanaBridge } from '../lib/bridge';
 
+const useIsMounted = () => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return mounted;
+};
+
 export const CompactBalance: React.FC = () => {
   const { publicKey, connected } = useWallet();
   const [solBalance, setSolBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const mounted = useIsMounted();
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+  }, [mounted]);
 
   // Load balance
   const loadBalance = useCallback(async () => {
@@ -33,7 +50,7 @@ export const CompactBalance: React.FC = () => {
     }
   }, [connected, publicKey, loadBalance]);
 
-  if (!connected || !publicKey) {
+  if (!mounted || !connected || !publicKey) {
     return null;
   }
 

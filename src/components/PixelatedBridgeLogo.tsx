@@ -93,3 +93,4 @@ export const PixelatedBridgeLogo: React.FC = () => {
     </div>
   );
 };
+
