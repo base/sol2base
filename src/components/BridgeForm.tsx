@@ -28,12 +28,31 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
 
   const minAmount = BRIDGE_CONFIG.minBridgeAmount / Math.pow(10, 9); // Convert to SOL (9 decimals)
 
-  // Debounced address resolution
+  // Debounced address resolution with improved validation
   const resolveAddress = useCallback(
-    async (address: string) => {
+    async (address: string, abortSignal?: AbortSignal) => {
       if (!address.trim()) {
         setResolvedAddress('');
         setAddressType('');
+        return;
+      }
+
+      // Only resolve if the input looks complete
+      const trimmed = address.trim();
+      const isCompleteInput = 
+        addressResolver.isValidInput(trimmed) && (
+          /^0x[a-fA-F0-9]{40}$/.test(trimmed) || // Valid Ethereum address
+          trimmed.endsWith('.eth') || // Complete ENS name
+          trimmed.endsWith('.base') || // Complete basename
+          trimmed.endsWith('.base.eth') // Complete basename with .eth
+        );
+
+      if (!isCompleteInput) {
+        // Don't resolve incomplete inputs, but show the type if recognizable
+        const type = addressResolver.getInputType(address);
+        setAddressType(type !== 'Unknown' ? `${type} (incomplete)` : '');
+        setResolvedAddress('');
+        setIsResolvingAddress(false);
         return;
       }
 
@@ -41,6 +60,11 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
       setErrors(prev => ({ ...prev, address: undefined }));
 
       try {
+        // Check if request was aborted
+        if (abortSignal?.aborted) {
+          return;
+        }
+
         const type = addressResolver.getInputType(address);
         setAddressType(type);
 
@@ -48,9 +72,20 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
           setResolvedAddress(address);
         } else {
           const resolved = await addressResolver.resolveAddress(address);
+          
+          // Check again if request was aborted after resolution
+          if (abortSignal?.aborted) {
+            return;
+          }
+          
           setResolvedAddress(resolved);
         }
       } catch (error) {
+        // Don't show errors if request was aborted
+        if (abortSignal?.aborted) {
+          return;
+        }
+        
         console.error('Address resolution failed:', error);
         setErrors(prev => ({ 
           ...prev, 
@@ -58,21 +93,28 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
         }));
         setResolvedAddress('');
       } finally {
-        setIsResolvingAddress(false);
+        if (!abortSignal?.aborted) {
+          setIsResolvingAddress(false);
+        }
       }
     },
     []
   );
 
-  // Debounce address resolution
+  // Debounce address resolution with abort controller
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const timer = setTimeout(() => {
       if (destinationAddress.trim()) {
-        resolveAddress(destinationAddress.trim());
+        resolveAddress(destinationAddress.trim(), abortController.signal);
       }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
   }, [destinationAddress, resolveAddress]);
 
   const validateForm = (): boolean => {
@@ -93,8 +135,19 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
       newErrors.address = 'Please enter a destination address';
     } else if (isResolvingAddress) {
       newErrors.address = 'Resolving address...';
-    } else if (!resolvedAddress) {
-      newErrors.address = 'Could not resolve address. Please check the format.';
+    } else {
+      const trimmed = destinationAddress.trim();
+      const isCompleteInput = 
+        /^0x[a-fA-F0-9]{40}$/.test(trimmed) || // Valid Ethereum address
+        trimmed.endsWith('.eth') || // Complete ENS name
+        trimmed.endsWith('.base') || // Complete basename
+        trimmed.endsWith('.base.eth'); // Complete basename with .eth
+      
+      if (isCompleteInput && !resolvedAddress) {
+        newErrors.address = 'Could not resolve address. Please check the format.';
+      } else if (!isCompleteInput && !addressType.includes('incomplete')) {
+        newErrors.address = 'Please enter a complete address, ENS name (.eth), or basename (.base)';
+      }
     }
 
     setErrors(newErrors);
@@ -223,7 +276,7 @@ export const BridgeForm: React.FC<BridgeFormProps> = ({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={disabled || isLoading || !amount || !destinationAddress || isResolvingAddress || !resolvedAddress}
+        disabled={disabled || isLoading || !amount || !destinationAddress || isResolvingAddress || (!resolvedAddress && addressType !== 'Ethereum Address')}
         className="w-full hacker-button py-3 px-4 font-mono text-sm flex items-center justify-center"
       >
         {isLoading ? (
