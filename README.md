@@ -150,7 +150,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 🙏 acknowledgments
 
-The Base team that put this together is cracked and it was fucking dope to be at Basecamp in-person when this was announced.
+The Base team that put this together is cracked and it was dope to be at Basecamp in-person when this was announced.
 
 - [Base](https://base.org) for the bridge infra
 - [Coinbase Developer Platform](https://docs.cdp.coinbase.com) for faucet services & general badassery
@@ -163,12 +163,12 @@ The Base team that put this together is cracked and it was fucking dope to be at
 - **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
 - **Solana docs**: [docs.solana.com](https://docs.solana.com)
 - **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
-- Bridge program on Solana Devnet: HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc
-- Base Relayer program on Solana Devnet: ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL
-- Bridge contract on Base Sepolia: 0x3154Cf16ccdb4C6d922629664174b904d80F2C35
-- Bridge Validator on Base Sepolia: 0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7
-- Wrapped SOL token CA on Base Sepolia: 0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD
-- Gas fee receiver address expected by Bridge program & Base Relayer program: BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F
+- Bridge program on Solana Devnet: [HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc](https://explorer.solana.com/address/HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc?cluster=devnet)
+- Base Relayer program on Solana Devnet: [ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL](https://explorer.solana.com/address/ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL?cluster=devnet)
+- Bridge contract on Base Sepolia: [0x3154Cf16ccdb4C6d922629664174b904d80F2C35](https://sepolia.basescan.org/address/0x3154Cf16ccdb4C6d922629664174b904d80F2C35)
+- Bridge Validator on Base Sepolia: [0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7](https://sepolia.basescan.org/address/0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7)
+- Wrapped SOL token CA on Base Sepolia: [0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD](https://sepolia.basescan.org/address/0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD)
+- Gas fee receiver address expected by Bridge program & Base Relayer program: [BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F](https://explorer.solana.com/address/BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F?cluster=devnet)
 
 ---
 
