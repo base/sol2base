@@ -52,11 +52,9 @@ export class RealBridgeImplementation {
       );
 
       // Calculate SOL vault PDA using current WSOL address
-      const remoteTokenBytes = this.addressToBytes20(REMOTE_WSOL_ADDR_HEX);
       const [solVaultAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("sol_vault"), // SOL_VAULT_SEED from IDL constants
-          remoteTokenBytes
         ],
         this.bridgeProgramId
       );
@@ -77,7 +75,6 @@ export class RealBridgeImplementation {
       console.info("[sol2base] messageToRelayPDA:", messageToRelayPda.toBase58());
       console.info("[sol2base] to:", destinationAddress.toLowerCase());
       console.info("[sol2base] remoteToken:", REMOTE_WSOL_ADDR_HEX);
-      console.info("[sol2base] remoteToken20bytes:", "0x" + remoteTokenBytes.toString("hex"));
       console.info("[sol2base] gasLimit:", DEFAULT_GAS_LIMIT.toString());
       console.info("[sol2base] usingExplicitWSOL:", !!process.env.NEXT_PUBLIC_BASE_WSOL);
       
