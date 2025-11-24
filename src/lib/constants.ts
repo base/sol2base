@@ -29,9 +29,9 @@ export const BASE_SEPOLIA_CONFIG = {
 };
 
 // Solana Devnet configuration (devnet-prod deployment)
-export const BRIDGE_PROGRAM_ID = "HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc";
-export const RELAYER_PROGRAM_ID = "ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL";
-export const GAS_FEE_RECEIVER = "BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F";
+export const BRIDGE_PROGRAM_ID = "7c6mteAcTXaQ1MFBCrnuzoZVTTAEfZwa6wgy4bqX3KXC";
+export const RELAYER_PROGRAM_ID = "56MBBEYAtQAdjT4e1NzHD8XaoyRSTvfgbSVVcEcHj51H";
+export const GAS_FEE_RECEIVER = "AFs1LCbodhvwpgX3u3URLsud6R1XMSaMiQ5LtXw4GKYT";
 
 // Standard gas limit for bridge operations
 export const DEFAULT_GAS_LIMIT = BigInt(process.env.NEXT_PUBLIC_GAS_LIMIT ?? "200000");
