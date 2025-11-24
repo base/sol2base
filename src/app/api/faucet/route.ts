@@ -65,7 +65,7 @@ export async function GET() {
       configured: isConfigured,
       ...info
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Failed to get faucet info' },
       { status: 500 }

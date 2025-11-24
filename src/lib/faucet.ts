@@ -89,7 +89,7 @@ export class MockFaucetService {
       );
       const account = await getAccount(this.connection, tokenAccount);
       return Number(account.amount) / Math.pow(10, 6); // Assuming 6 decimals
-    } catch (error) {
+    } catch {
       // Account doesn't exist or other error
       return 0;
     }

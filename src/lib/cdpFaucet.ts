@@ -2,8 +2,15 @@
  * CDP Faucet Service for Base Sepolia USDC
  * Uses the official Coinbase Developer Platform Faucet API
  */
+interface CdpClientShape {
+  configure(config: { apiKeyId: string; apiKeySecret: string; walletSecret?: string }): Promise<void>;
+  solana: {
+    requestFaucet(params: { address: string; network: string; token: string }): Promise<Record<string, string>>;
+  };
+}
+
 export class CdpFaucetService {
-  private cdp: any = null;
+  private cdp: CdpClientShape | null = null;
   private initialized = false;
 
   constructor() {
@@ -26,7 +33,7 @@ export class CdpFaucetService {
     try {
       // Dynamically import CDP SDK only when needed (at runtime)
       const { CdpClient } = await import("@coinbase/cdp-sdk");
-      this.cdp = new CdpClient();
+      this.cdp = new CdpClient() as CdpClientShape;
       
       await this.cdp.configure({
         apiKeyId: process.env.CDP_API_KEY_ID || '',
@@ -49,6 +56,10 @@ export class CdpFaucetService {
   async requestSol(address: string): Promise<{ transactionHash: string; amount: number }> {
     try {
       await this.initialize();
+
+      if (!this.cdp) {
+        throw new Error('CDP client not initialized.');
+      }
 
       // Validate Solana address format (base58, typically 32-44 characters)
       if (!address.match(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)) {

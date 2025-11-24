@@ -1,8 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 
 // Base Sepolia (testnet) configuration for devnet-prod bridge
-export const SOLANA_CLUSTER: "devnet" = "devnet";
-export const BASE_NETWORK = "base-sepolia";
+export const SOLANA_CLUSTER = "devnet" as const;
+export const BASE_NETWORK = "base-sepolia" as const;
 
 // WSOL address for devnet-prod deployment (verified working)
 // Use env var to override if needed for different environments
@@ -21,7 +21,7 @@ export const BASE_SEPOLIA_CONFIG = {
   blockExplorer: 'https://sepolia.basescan.org',
   
   // Contract addresses from devnet-prod bridge deployment
-  bridge: '0x3154Cf16ccdb4C6d922629664174b904d80F2C35',
+  bridge: '0x01824a90d32A69022DdAEcC6C5C14Ed08dB4EB9B',
   bridgeValidator: '0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7',
   
   // Token addresses
@@ -53,6 +53,38 @@ export const SOLANA_DEVNET_CONFIG = {
   wEth: new PublicKey('DG4ncVRoiSkYBLVUXxCFbVg38RhByjFKTLZi6UFFmZuf'),
   wErc20: new PublicKey('44PhEvftJp57KRNSR7ypGLns1JUKXqAubewi3h5q1TEo'),
 };
+
+export type BridgeAssetKind = 'sol' | 'spl';
+
+export interface BridgeAssetConfig {
+  symbol: string;
+  label: string;
+  type: BridgeAssetKind;
+  decimals: number;
+  mintAddress?: string;
+  remoteAddress?: string;
+  description: string;
+}
+
+export const DEFAULT_BRIDGEABLE_ASSETS: BridgeAssetConfig[] = [
+  {
+    symbol: 'sol',
+    label: 'Native SOL',
+    type: 'sol',
+    decimals: 9,
+    remoteAddress: REMOTE_WSOL_ADDR_HEX,
+    description: 'Lock native SOL on Solana Devnet and mint WSOL on Base Sepolia.',
+  },
+  {
+    symbol: 'usdc',
+    label: 'Bridge USDC',
+    type: 'spl',
+    decimals: 6,
+    mintAddress: SOLANA_DEVNET_CONFIG.bridgeUsdc.toBase58(),
+    remoteAddress: process.env.NEXT_PUBLIC_BASE_USDC?.toLowerCase(),
+    description: 'CDP USDC issued on Solana Devnet, relayed to its Base twin.',
+  },
+];
 
 // Bridge configuration
 export const BRIDGE_CONFIG = {

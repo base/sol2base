@@ -3,21 +3,56 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
-  LAMPORTS_PER_SOL,
   SystemProgram,
 } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
+import { parseUnits } from 'ethers';
 import { deriveOutgoingMessagePda, deriveMessageToRelayPda, normalizeSalt } from './pdas';
-import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG, DEFAULT_GAS_LIMIT, REMOTE_WSOL_ADDR_HEX } from './constants';
+import { SOLANA_DEVNET_CONFIG, DEFAULT_GAS_LIMIT } from './constants';
+
+export type ContractCallType = 'call' | 'delegatecall' | 'create' | 'create2';
+
+export interface BaseContractCall {
+  type: ContractCallType;
+  target?: string;
+  value?: string;
+  data?: string;
+}
+
+export interface BridgeAssetDetails {
+  symbol: string;
+  label: string;
+  type: 'sol' | 'spl';
+  decimals: number;
+  remoteAddress: string;
+  mint?: PublicKey;
+  tokenProgram?: PublicKey;
+}
+
+interface CreateBridgeTransactionParams {
+  walletAddress: PublicKey;
+  destinationAddress: string;
+  amount: bigint;
+  asset: BridgeAssetDetails;
+  tokenAccount?: PublicKey;
+  call?: BaseContractCall;
+}
 
 /**
  * Real Bridge Implementation using standard Solana libraries
- * Implements the actual bridge_sol instruction without dependency conflicts
+ * Implements the actual bridge instructions without dependency conflicts
  */
 export class RealBridgeImplementation {
   private connection: Connection;
   private bridgeProgramId: PublicKey;
   private baseRelayerProgramId: PublicKey;
+  private static readonly CALL_TYPE_INDEX: Record<ContractCallType, number> = {
+    call: 0,
+    delegatecall: 1,
+    create: 2,
+    create2: 3,
+  };
 
   constructor() {
     this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
@@ -26,84 +61,71 @@ export class RealBridgeImplementation {
   }
 
   /**
-   * Create a real bridge transaction using the actual bridge_sol instruction
-   * @param includeRelayPayment - Whether to include pay_for_relay instruction (experimental)
+   * Create a bridge transaction (SOL or SPL) using the deployed programs.
    */
-  async createBridgeTransaction(
-    walletAddress: PublicKey,
-    amount: number,
-    destinationAddress: string
-  ): Promise<Transaction> {
-    const amountLamports = BigInt(Math.floor(amount * LAMPORTS_PER_SOL));
-
-    // Validate SOL balance
-    const balance = await this.connection.getBalance(walletAddress);
-    if (balance < Number(amountLamports)) {
-      throw new Error(`Insufficient SOL balance. You have ${balance / LAMPORTS_PER_SOL} SOL but trying to bridge ${amount} SOL.`);
+  async createBridgeTransaction(params: CreateBridgeTransactionParams): Promise<Transaction> {
+    if (params.asset.type === 'sol') {
+      return this.buildSolBridgeTransaction(params);
     }
 
-    console.log(`Creating REAL bridge transaction: ${amount} SOL to ${destinationAddress}`);
+    return this.buildSplBridgeTransaction(params);
+  }
+
+  private createSaltBundle() {
+    const salt32 = new Uint8Array(32);
+    crypto.getRandomValues(salt32);
+    const saltBuffer = normalizeSalt(salt32);
+
+    return {
+      saltBuffer,
+      outgoingMessagePda: deriveOutgoingMessagePda(saltBuffer),
+      messageToRelayPda: deriveMessageToRelayPda(saltBuffer),
+    };
+  }
+
+  private async buildSolBridgeTransaction({
+    walletAddress,
+    amount,
+    destinationAddress,
+    asset,
+    call,
+  }: CreateBridgeTransactionParams): Promise<Transaction> {
+    console.log(`Creating REAL bridge transaction: ${asset.symbol.toUpperCase()} → ${destinationAddress}`);
 
     try {
-      // Calculate bridge PDA (Program Derived Address)
       const [bridgeAddress] = PublicKey.findProgramAddressSync(
-        [Buffer.from("bridge")], // BRIDGE_SEED from IDL constants
+        [Buffer.from('bridge')],
         this.bridgeProgramId
       );
 
-      // Calculate SOL vault PDA using current WSOL address
       const [solVaultAddress] = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("sol_vault"), // SOL_VAULT_SEED from IDL constants
-        ],
+        [Buffer.from('sol_vault')],
         this.bridgeProgramId
       );
 
-      // **CRITICAL FIX**: Use SINGLE 32-byte salt for BOTH PDAs (v0.3.0 requirement)
-      const salt32 = new Uint8Array(32);
-      crypto.getRandomValues(salt32);
-      const saltBuffer = normalizeSalt(salt32);
-      
-      // Derive PDAs using the SAME salt
-      const outgoingMessagePda = deriveOutgoingMessagePda(saltBuffer);
-      const messageToRelayPda = deriveMessageToRelayPda(saltBuffer);
+      const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
 
-      // **CRITICAL DIAGNOSTICS**: Show exactly what relayer will see
-      console.info("[sol2base] env=devnet-prod");
-      console.info("[sol2base] salt32:", "0x" + saltBuffer.toString("hex"));
-      console.info("[sol2base] outgoingMessagePDA:", outgoingMessagePda.toBase58());
-      console.info("[sol2base] messageToRelayPDA:", messageToRelayPda.toBase58());
-      console.info("[sol2base] to:", destinationAddress.toLowerCase());
-      console.info("[sol2base] remoteToken:", REMOTE_WSOL_ADDR_HEX);
-      console.info("[sol2base] gasLimit:", DEFAULT_GAS_LIMIT.toString());
-      console.info("[sol2base] usingExplicitWSOL:", !!process.env.NEXT_PUBLIC_BASE_WSOL);
-      
-      console.log(`Bridge Program ID: ${this.bridgeProgramId.toString()}`);
-      console.log(`Bridge Address: ${bridgeAddress.toString()}`);
-      console.log(`SOL Vault: ${solVaultAddress.toString()}`);
-      console.log(`Outgoing Message PDA: ${outgoingMessagePda.toString()}`);
-      console.log(`Destination: ${destinationAddress}`);
-      console.log(`Wrapped SOL: ${REMOTE_WSOL_ADDR_HEX}`);
+      console.info('[sol2base] env=devnet-prod');
+      console.info('[sol2base] asset:', asset.label);
+      console.info('[sol2base] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[sol2base] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[sol2base] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[sol2base] to:', destinationAddress.toLowerCase());
+      console.info('[sol2base] remoteToken:', asset.remoteAddress);
+      console.info('[sol2base] gasLimit:', DEFAULT_GAS_LIMIT.toString());
 
-      // Fetch bridge state for gas fee receiver
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {
         throw new Error('Bridge account not found. The bridge may not be initialized on Solana Devnet.');
       }
 
       const gasFeeReceiver = SOLANA_DEVNET_CONFIG.gasFeeReceiver;
-      console.log(`Gas Fee Receiver: ${gasFeeReceiver.toString()} (bridge operator's address)`);
 
-      // Derive relayer config PDA
       const [cfgAddress] = PublicKey.findProgramAddressSync(
         [Buffer.from('config')],
         this.baseRelayerProgramId
       );
 
-      console.log(`Relayer Config PDA: ${cfgAddress.toString()}`);
-      console.log(`Message To Relay PDA: ${messageToRelayPda.toString()}`);
-
-      // Build transaction
       const transaction = new Transaction();
       const { blockhash } = await this.connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
@@ -122,7 +144,6 @@ export class RealBridgeImplementation {
           gasFeeReceiver,
           messageToRelay: messageToRelayPda,
           messageToRelaySalt: saltBuffer,
-          outgoingMessageSalt: saltBuffer,
           systemProgram: SystemProgram.programId,
           outgoingMessage: outgoingMessagePda,
           gasLimit: DEFAULT_GAS_LIMIT,
@@ -138,13 +159,12 @@ export class RealBridgeImplementation {
           outgoingMessageSalt: saltBuffer,
           systemProgram: SystemProgram.programId,
           to: destinationAddress,
-          remoteToken: REMOTE_WSOL_ADDR_HEX,
-          amount: amountLamports,
+          amount,
+          call,
         });
 
         transaction.add(relayInstruction);
         transaction.add(bridgeInstruction);
-
       } catch (error) {
         console.error('❌ Error with relay payment, falling back to bridge-only:', error);
 
@@ -155,18 +175,145 @@ export class RealBridgeImplementation {
           solVault: solVaultAddress,
           bridge: bridgeAddress,
           outgoingMessage: outgoingMessagePda,
-          outgoingMessageSalt,
+          outgoingMessageSalt: saltBuffer,
           systemProgram: SystemProgram.programId,
           to: destinationAddress,
-          remoteToken: BASE_SEPOLIA_CONFIG.wrappedSOL,
-          amount: amountLamports,
+          amount,
+          call,
         });
 
         transaction.add(fallbackBridgeInstruction);
       }
 
       return transaction;
+    } catch (error) {
+      console.error('Error creating bridge transaction:', error);
+      throw error;
+    }
+  }
 
+  private async buildSplBridgeTransaction({
+    walletAddress,
+    destinationAddress,
+    amount,
+    asset,
+    tokenAccount,
+    call,
+  }: CreateBridgeTransactionParams): Promise<Transaction> {
+    if (!asset.mint) {
+      throw new Error('SPL asset is missing a mint address.');
+    }
+
+    if (!tokenAccount) {
+      throw new Error('Token account is required for SPL bridging.');
+    }
+
+    console.log(`Creating REAL bridge transaction: ${asset.symbol.toUpperCase()} SPL → ${destinationAddress}`);
+
+    try {
+      const [bridgeAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from('bridge')],
+        this.bridgeProgramId
+      );
+
+      const remoteTokenBytes = this.addressToBytes20(asset.remoteAddress);
+      const [tokenVaultAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from('token_vault'), asset.mint.toBuffer(), remoteTokenBytes],
+        this.bridgeProgramId
+      );
+
+      const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
+
+      console.info('[sol2base] env=devnet-prod');
+      console.info('[sol2base] asset:', asset.label);
+      console.info('[sol2base] mint:', asset.mint.toBase58());
+      console.info('[sol2base] tokenVault:', tokenVaultAddress.toBase58());
+      console.info('[sol2base] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[sol2base] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[sol2base] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[sol2base] to:', destinationAddress.toLowerCase());
+      console.info('[sol2base] remoteToken:', asset.remoteAddress);
+
+      const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
+      if (!bridgeAccountInfo) {
+        throw new Error('Bridge account not found. The bridge may not be initialized on Solana Devnet.');
+      }
+
+      const gasFeeReceiver = SOLANA_DEVNET_CONFIG.gasFeeReceiver;
+
+      const [cfgAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from('config')],
+        this.baseRelayerProgramId
+      );
+
+      const transaction = new Transaction();
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = walletAddress;
+
+      try {
+        const cfgAccountInfo = await this.connection.getAccountInfo(cfgAddress);
+        if (!cfgAccountInfo) {
+          console.log('❌ Relayer config account does not exist:', cfgAddress.toString());
+          throw new Error('Base relayer config account not found. Bridge may not be fully initialized.');
+        }
+
+        const relayInstruction = this.createPayForRelayInstruction({
+          payer: walletAddress,
+          cfg: cfgAddress,
+          gasFeeReceiver,
+          messageToRelay: messageToRelayPda,
+          messageToRelaySalt: saltBuffer,
+          systemProgram: SystemProgram.programId,
+          outgoingMessage: outgoingMessagePda,
+          gasLimit: DEFAULT_GAS_LIMIT,
+        });
+
+        const bridgeInstruction = this.createBridgeSplInstruction({
+          payer: walletAddress,
+          from: walletAddress,
+          gasFeeReceiver,
+          mint: asset.mint,
+          fromTokenAccount: tokenAccount,
+          tokenVault: tokenVaultAddress,
+          bridge: bridgeAddress,
+          outgoingMessage: outgoingMessagePda,
+          outgoingMessageSalt: saltBuffer,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: asset.tokenProgram ?? TOKEN_PROGRAM_ID,
+          to: destinationAddress,
+          remoteToken: asset.remoteAddress,
+          amount,
+          call,
+        });
+
+        transaction.add(relayInstruction);
+        transaction.add(bridgeInstruction);
+      } catch (error) {
+        console.error('❌ Error with relay payment, falling back to bridge-only:', error);
+
+        const fallbackBridgeInstruction = this.createBridgeSplInstruction({
+          payer: walletAddress,
+          from: walletAddress,
+          gasFeeReceiver,
+          mint: asset.mint,
+          fromTokenAccount: tokenAccount,
+          tokenVault: tokenVaultAddress,
+          bridge: bridgeAddress,
+          outgoingMessage: outgoingMessagePda,
+          outgoingMessageSalt: saltBuffer,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: asset.tokenProgram ?? TOKEN_PROGRAM_ID,
+          to: destinationAddress,
+          remoteToken: asset.remoteAddress,
+          amount,
+          call,
+        });
+
+        transaction.add(fallbackBridgeInstruction);
+      }
+
+      return transaction;
     } catch (error) {
       console.error('Error creating bridge transaction:', error);
       throw error;
@@ -182,7 +329,6 @@ export class RealBridgeImplementation {
     gasFeeReceiver,
     messageToRelay,
     messageToRelaySalt,
-    outgoingMessageSalt,
     systemProgram,
     outgoingMessage,
     gasLimit,
@@ -192,7 +338,6 @@ export class RealBridgeImplementation {
     gasFeeReceiver: PublicKey;
     messageToRelay: PublicKey;
     messageToRelaySalt: Buffer;
-    outgoingMessageSalt: Buffer;
     systemProgram: PublicKey;
     outgoingMessage: PublicKey;
     gasLimit: bigint;
@@ -257,8 +402,8 @@ export class RealBridgeImplementation {
     outgoingMessageSalt,
     systemProgram,
     to,
-    remoteToken,
     amount,
+    call,
   }: {
     payer: PublicKey;
     from: PublicKey;
@@ -269,17 +414,92 @@ export class RealBridgeImplementation {
     outgoingMessageSalt: Buffer;
     systemProgram: PublicKey;
     to: string;
-    remoteToken: string;
     amount: bigint;
+    call?: BaseContractCall;
   }): TransactionInstruction {
 
     const discriminator = Buffer.from([190, 190, 32, 158, 75, 153, 32, 86]);
 
     const toBytes = this.addressToBytes20(to);
-    const remoteTokenBytes = this.addressToBytes20(remoteToken);
+    const callBuffer = this.serializeOptionalCall(call);
 
-    // Instruction data: discriminator + salt + to + remoteToken + amount + call_option
-    const data = Buffer.alloc(8 + 32 + 20 + 20 + 8 + 1);
+    // Instruction data: discriminator + salt + to + amount + call_option
+    const data = Buffer.alloc(8 + 32 + 20 + 8 + callBuffer.length);
+    let offset = 0;
+
+    discriminator.copy(data, offset);
+    offset += 8;
+
+    outgoingMessageSalt.copy(data, offset);
+    offset += 32;
+
+    toBytes.copy(data, offset);
+    offset += 20;
+
+    data.writeBigUInt64LE(amount, offset);
+    offset += 8;
+
+    callBuffer.copy(data, offset);
+
+    const keys = [
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: from, isSigner: false, isWritable: true },
+      { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
+      { pubkey: solVault, isSigner: false, isWritable: true },
+      { pubkey: bridge, isSigner: false, isWritable: true },
+      { pubkey: outgoingMessage, isSigner: false, isWritable: true },
+      { pubkey: systemProgram, isSigner: false, isWritable: false },
+    ];
+
+    return new TransactionInstruction({
+      keys,
+      programId: this.bridgeProgramId,
+      data,
+    });
+  }
+
+  private createBridgeSplInstruction({
+    payer,
+    from,
+    gasFeeReceiver,
+    mint,
+    fromTokenAccount,
+    tokenVault,
+    bridge,
+    outgoingMessage,
+    outgoingMessageSalt,
+    systemProgram,
+    tokenProgram,
+    to,
+    remoteToken,
+    amount,
+    call,
+  }: {
+    payer: PublicKey;
+    from: PublicKey;
+    gasFeeReceiver: PublicKey;
+    mint: PublicKey;
+    fromTokenAccount: PublicKey;
+    tokenVault: PublicKey;
+    bridge: PublicKey;
+    outgoingMessage: PublicKey;
+    outgoingMessageSalt: Buffer;
+    systemProgram: PublicKey;
+    tokenProgram: PublicKey;
+    to: string;
+    remoteToken: string;
+    amount: bigint;
+    call?: BaseContractCall;
+  }): TransactionInstruction {
+
+    const discriminator = Buffer.from([87, 109, 172, 103, 8, 187, 223, 126]);
+
+    const toBytes = this.addressToBytes20(to);
+    const remoteTokenBytes = this.addressToBytes20(remoteToken);
+    const callBuffer = this.serializeOptionalCall(call);
+
+    // Instruction data: discriminator + salt + to + remote_token + amount + call_option
+    const data = Buffer.alloc(8 + 32 + 20 + 20 + 8 + callBuffer.length);
     let offset = 0;
 
     discriminator.copy(data, offset);
@@ -297,15 +517,18 @@ export class RealBridgeImplementation {
     data.writeBigUInt64LE(amount, offset);
     offset += 8;
 
-    data.writeUInt8(0, offset);
+    callBuffer.copy(data, offset);
 
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
-      { pubkey: from, isSigner: false, isWritable: true },
+      { pubkey: from, isSigner: true, isWritable: true },
       { pubkey: gasFeeReceiver, isSigner: false, isWritable: true },
-      { pubkey: solVault, isSigner: false, isWritable: true },
+      { pubkey: mint, isSigner: false, isWritable: true },
+      { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
       { pubkey: bridge, isSigner: false, isWritable: true },
+      { pubkey: tokenVault, isSigner: false, isWritable: true },
       { pubkey: outgoingMessage, isSigner: false, isWritable: true },
+      { pubkey: tokenProgram, isSigner: false, isWritable: false },
       { pubkey: systemProgram, isSigner: false, isWritable: false },
     ];
 
@@ -339,6 +562,93 @@ export class RealBridgeImplementation {
       console.error(`Error converting address ${address}:`, error);
       throw new Error(`Failed to convert Ethereum address: ${address}`);
     }
+  }
+
+  private serializeOptionalCall(call?: BaseContractCall): Buffer {
+    if (!call) {
+      return Buffer.from([0]);
+    }
+
+    const normalizedType = call.type.toLowerCase() as ContractCallType;
+    const discriminator = RealBridgeImplementation.CALL_TYPE_INDEX[normalizedType];
+
+    if (discriminator === undefined) {
+      throw new Error(`Unsupported call type "${call.type}". Use call | delegatecall | create | create2.`);
+    }
+
+    if ((normalizedType === 'call' || normalizedType === 'delegatecall') && !call.target) {
+      throw new Error('callTarget is required for call and delegatecall operations.');
+    }
+
+    const targetBuffer =
+      normalizedType === 'create' || normalizedType === 'create2'
+        ? Buffer.alloc(20)
+        : this.addressToBytes20((call.target as string).toLowerCase());
+
+    const valueBuffer = Buffer.alloc(16);
+    this.writeUint128LE(this.parseCallValue(call.value), valueBuffer);
+
+    const payload = this.hexToBuffer(call.data ?? '0x');
+    const payloadLength = Buffer.alloc(4);
+    payloadLength.writeUInt32LE(payload.length, 0);
+
+    return Buffer.concat([
+      Buffer.from([1, discriminator]),
+      targetBuffer,
+      valueBuffer,
+      payloadLength,
+      payload,
+    ]);
+  }
+
+  private parseCallValue(value?: string): bigint {
+    if (!value || value.trim().length === 0) {
+      return 0n;
+    }
+
+    try {
+      const parsed = parseUnits(value, 18);
+      const max = (1n << 128n) - 1n;
+      if (parsed > max) {
+        throw new Error('Call value exceeds 128-bit limit.');
+      }
+      return parsed;
+    } catch {
+      throw new Error(`Invalid call value "${value}". Provide a decimal ETH amount.`);
+    }
+  }
+
+  private writeUint128LE(value: bigint, buffer: Buffer) {
+    if (buffer.length < 16) {
+      throw new Error('Uint128 buffer must have at least 16 bytes.');
+    }
+
+    let temp = value;
+    for (let i = 0; i < 16; i += 1) {
+      buffer[i] = Number(temp & 0xffn);
+      temp >>= 8n;
+    }
+  }
+
+  private hexToBuffer(value: string): Buffer {
+    if (!value) {
+      return Buffer.alloc(0);
+    }
+
+    const clean = value.startsWith('0x') ? value.slice(2) : value;
+    if (clean.length === 0) {
+      return Buffer.alloc(0);
+    }
+
+    if (clean.length % 2 !== 0) {
+      throw new Error('Hex data must have an even number of characters.');
+    }
+
+    if (!/^[0-9a-fA-F]+$/.test(clean)) {
+      throw new Error('Hex data contains invalid characters.');
+    }
+
+    return Buffer.from(clean, 'hex');
   }
 
   /**

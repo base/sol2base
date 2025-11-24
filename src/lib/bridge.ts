@@ -1,6 +1,13 @@
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
-import { SOLANA_DEVNET_CONFIG, BASE_SEPOLIA_CONFIG, BRIDGE_CONFIG } from './constants';
+import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction } from '@solana/web3.js';
+import { getAssociatedTokenAddress, getAccount, getMint, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { formatUnits, parseUnits } from 'ethers';
+import {
+  SOLANA_DEVNET_CONFIG,
+  DEFAULT_BRIDGEABLE_ASSETS,
+  type BridgeAssetConfig,
+} from './constants';
+import { realBridgeImplementation } from './realBridgeImplementation';
+import type { BaseContractCall, BridgeAssetDetails } from './realBridgeImplementation';
 
 export interface BridgeTransfer {
   amount: number;
@@ -11,11 +18,35 @@ export interface BridgeTransfer {
   timestamp: number;
 }
 
+export interface BridgeAssetOverrides {
+  mint?: string;
+  remote?: string;
+  decimals?: number;
+}
+
+export interface BridgeExecutionOptions {
+  walletAddress: PublicKey;
+  amount: string;
+  assetSymbol: string;
+  destinationAddress: string;
+  signTransaction: (transaction: Transaction) => Promise<Transaction>;
+  overrides?: BridgeAssetOverrides;
+  callOptions?: BaseContractCall;
+}
+
+interface SplBalanceCheckResult {
+  tokenAccount: PublicKey;
+}
+
 export class SolanaBridge {
   private connection: Connection;
 
   constructor() {
     this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
+  }
+
+  getSupportedAssets(): BridgeAssetConfig[] {
+    return DEFAULT_BRIDGEABLE_ASSETS;
   }
 
   /**
@@ -67,7 +98,7 @@ export class SolanaBridge {
   }
 
   /**
-   * Create a bridge transaction from Solana to Base
+   * Legacy helper used by the original UI. Defaults to SOL bridging.
    */
   async createBridgeTransaction(
     walletAddress: PublicKey,
@@ -75,47 +106,196 @@ export class SolanaBridge {
     destinationAddress: string,
     signTransaction: (transaction: Transaction) => Promise<Transaction>
   ): Promise<string> {
-    // Import address resolver and real bridge
+    return this.bridge({
+      walletAddress,
+      amount: amount.toString(),
+      assetSymbol: 'sol',
+      destinationAddress,
+      signTransaction,
+    });
+  }
+
+  /**
+   * Bridge any supported asset (SOL or SPL) to Base.
+   */
+  async bridge(options: BridgeExecutionOptions): Promise<string> {
+    const {
+      walletAddress,
+      amount,
+      assetSymbol,
+      destinationAddress,
+      signTransaction,
+      overrides,
+      callOptions,
+    } = options;
+
+    const trimmedAmount = amount.trim();
+    if (!trimmedAmount) {
+      throw new Error('Amount is required.');
+    }
+
     const { addressResolver } = await import('./addressResolver');
-    const { realBridgeImplementation } = await import('./realBridgeImplementation');
-    
-    // Resolve destination address (handles ENS/basename)
+
     console.log(`Resolving destination address: ${destinationAddress}`);
     const resolvedAddress = await addressResolver.resolveAddress(destinationAddress);
     console.log(`Resolved to: ${resolvedAddress}`);
 
-    // Validate amount
-    if (amount < BRIDGE_CONFIG.minBridgeAmount / Math.pow(10, 9)) {
-      throw new Error(`Minimum bridge amount is ${BRIDGE_CONFIG.minBridgeAmount / Math.pow(10, 9)} SOL`);
+    const asset = await this.resolveAssetDefinition(assetSymbol, overrides);
+    const amountInBaseUnits = this.parseAmountToUnits(trimmedAmount, asset.decimals);
+
+    let tokenAccount: PublicKey | undefined;
+    if (asset.type === 'sol') {
+      await this.ensureSolBalance(walletAddress, amountInBaseUnits);
+    } else {
+      ({ tokenAccount } = await this.ensureSplBalance(walletAddress, asset, amountInBaseUnits));
     }
 
-    console.log(`Creating real bridge transaction: ${amount} SOL to ${resolvedAddress}`);
-
-    // Create the real bridge transaction
-    const transaction = await realBridgeImplementation.createBridgeTransaction(
+    const transaction = await realBridgeImplementation.createBridgeTransaction({
       walletAddress,
-      amount,
-      resolvedAddress
-    );
+      amount: amountInBaseUnits,
+      destinationAddress: resolvedAddress,
+      asset,
+      tokenAccount,
+      call: callOptions,
+    });
 
-    // Submit the transaction
     const signature = await realBridgeImplementation.submitBridgeTransaction(
       transaction,
       walletAddress,
       signTransaction
     );
 
-    console.log(`REAL bridge transaction submitted: ${signature}`);
-    
-    // **HANDOFF BUNDLE** for Base team debugging
-    console.info("=== HANDOFF BUNDLE FOR BASE TEAM ===");
-    console.info("Environment: devnet-prod");
-    console.info("Solana tx:", signature);
-    console.info("Expected Base registration event should contain OutgoingMessage PDA");
-    console.info("If no Base event with this PDA, likely indexer/registry issue");
-    console.info("===================================");
-    
+    console.log(`Bridge transaction submitted: ${signature}`);
     return signature;
+  }
+
+  private static readonly BASE58_MINT_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+  private async resolveAssetDefinition(
+    symbol: string,
+    overrides?: BridgeAssetOverrides
+  ): Promise<BridgeAssetDetails> {
+    const rawSymbol = symbol.trim();
+    const normalizedSymbol = rawSymbol.toLowerCase();
+    const isMintAddress = SolanaBridge.BASE58_MINT_REGEX.test(rawSymbol);
+    const base = DEFAULT_BRIDGEABLE_ASSETS.find(asset => asset.symbol === normalizedSymbol);
+    const forceSpl = isMintAddress || !!(overrides?.mint || overrides?.remote || overrides?.decimals);
+    const type: 'sol' | 'spl' =
+      forceSpl || base?.type === 'spl' || normalizedSymbol !== 'sol' ? 'spl' : 'sol';
+
+    let mintAddress = overrides?.mint ?? base?.mintAddress;
+    if (isMintAddress) {
+      mintAddress = rawSymbol;
+    }
+    let remoteAddress = overrides?.remote ?? base?.remoteAddress;
+
+    if (!remoteAddress) {
+      throw new Error(
+        `Remote Base token address is required for ${normalizedSymbol}. Provide --remote <0x...>.`
+      );
+    }
+
+    remoteAddress = remoteAddress.toLowerCase();
+    this.assertEvmAddress(remoteAddress, 'remote token');
+
+    let decimals = overrides?.decimals ?? base?.decimals;
+    let mint: PublicKey | undefined;
+
+    if (type === 'spl') {
+      if (!mintAddress) {
+        throw new Error(
+          `Mint address is required for ${normalizedSymbol}. Provide --mint <mintAddress>.`
+        );
+      }
+
+      mint = new PublicKey(mintAddress);
+      if (decimals === undefined) {
+        const mintInfo = await getMint(this.connection, mint);
+        decimals = mintInfo.decimals;
+      }
+    } else {
+      decimals = decimals ?? 9;
+      mint = undefined;
+    }
+
+    if (decimals === undefined) {
+      throw new Error(
+        `Unable to determine decimals for ${normalizedSymbol}. Provide --decimals <value>.`
+      );
+    }
+
+    return {
+      symbol: isMintAddress ? rawSymbol : normalizedSymbol,
+      label: base?.label ?? normalizedSymbol.toUpperCase(),
+      type,
+      decimals,
+      remoteAddress,
+      mint,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    };
+  }
+
+  private parseAmountToUnits(amount: string, decimals: number): bigint {
+    try {
+      const normalized = amount.trim();
+      if (!normalized) {
+        throw new Error('Amount must be greater than zero.');
+      }
+      const parsed = parseUnits(normalized, decimals);
+      if (parsed <= 0n) {
+        throw new Error('Amount must be greater than zero.');
+      }
+      return parsed;
+    } catch {
+      throw new Error(`Invalid amount "${amount}". Provide a numeric value.`);
+    }
+  }
+
+  private async ensureSolBalance(walletAddress: PublicKey, amountRequired: bigint) {
+    const lamports = await this.connection.getBalance(walletAddress);
+    if (BigInt(lamports) < amountRequired) {
+      const balance = formatUnits(BigInt(lamports), 9);
+      const required = formatUnits(amountRequired, 9);
+      throw new Error(`Insufficient SOL balance. You have ${balance} SOL but need ${required} SOL.`);
+    }
+  }
+
+  private async ensureSplBalance(
+    walletAddress: PublicKey,
+    asset: BridgeAssetDetails,
+    amountRequired: bigint
+  ): Promise<SplBalanceCheckResult> {
+    if (!asset.mint) {
+      throw new Error('Missing mint address for SPL asset.');
+    }
+
+    const tokenAccount = await getAssociatedTokenAddress(asset.mint, walletAddress);
+
+    let account;
+    try {
+      account = await getAccount(this.connection, tokenAccount);
+    } catch {
+      throw new Error(
+        `No associated token account found for ${asset.label}. Create an ATA and fund it first.`
+      );
+    }
+
+    const balance = BigInt(account.amount.toString());
+    if (balance < amountRequired) {
+      const readableBalance = formatUnits(balance, asset.decimals);
+      const readableRequired = formatUnits(amountRequired, asset.decimals);
+      throw new Error(
+        `Insufficient ${asset.symbol.toUpperCase()} balance. You have ${readableBalance} but need ${readableRequired}.`
+      );
+    }
+
+    return { tokenAccount };
+  }
+
+  private assertEvmAddress(address: string, label: string) {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      throw new Error(`Invalid ${label} address "${address}". Expected 0x-prefixed 20-byte hex.`);
+    }
   }
 
   /**
@@ -148,7 +328,7 @@ export class SolanaBridge {
   /**
    * Get recent bridge transactions for a wallet
    */
-  async getBridgeHistory(walletAddress: PublicKey): Promise<BridgeTransfer[]> {
+  async getBridgeHistory(): Promise<BridgeTransfer[]> {
     // This would query the bridge program's transaction history
     // For now, return empty array as placeholder
     return [];
@@ -157,7 +337,7 @@ export class SolanaBridge {
   /**
    * Estimate bridge fees
    */
-  async estimateBridgeFee(amount: number): Promise<{ baseFee: number; gasFee: number; total: number }> {
+  async estimateBridgeFee(): Promise<{ baseFee: number; gasFee: number; total: number }> {
     // This would calculate actual bridge fees based on current gas prices and bridge configuration
     const baseFee = 0.001; // 0.001 SOL base fee
     const gasFee = 0.002; // Estimated gas fee for Base transaction

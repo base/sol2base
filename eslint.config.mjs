@@ -19,6 +19,7 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "bridge-solana/**",
+      "base-bridge/**",
       "src/lib/generated/**",
     ],
   },
