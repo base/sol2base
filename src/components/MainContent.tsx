@@ -505,7 +505,7 @@ export const MainContent: React.FC = () => {
         </ul>
         {publicKey && (
           <p className="text-green-200 text-xs mt-3">
-            Twin (Base):{' '}
+            Your Twin Address on Base: {' '}
             {isTwinLoading
               ? 'resolving…'
               : twinAddress
@@ -516,7 +516,7 @@ export const MainContent: React.FC = () => {
                     rel="noreferrer"
                     className="text-green-300 underline"
                   >
-                    {truncateAddress(twinAddress)}
+                    {twinAddress}
                   </a>
                 )
               : twinError ?? 'unavailable'}
