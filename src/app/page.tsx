@@ -11,7 +11,7 @@ export default function Home() {
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-green-400">Solase Terminal</p>
             <p className="text-sm text-green-300/80">
-              Solana devnet → Base Sepolia :: Solase Terminal bridge
+              Solana Devnet → Base Sepolia
             </p>
           </div>
           <WalletConnection />

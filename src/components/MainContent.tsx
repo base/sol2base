@@ -98,7 +98,7 @@ export const MainContent: React.FC = () => {
   const exampleTwinDestination = twinAddress ?? "0xYOUR_TWIN";
   const exampleCommand = `bridge 0.0001 sol ${exampleTwinDestination} --call-contract ${
     BASE_SEPOLIA_CONFIG.wrappedSOL
-  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 100000000000000`;
+  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 10000`;
 
   const appendLog = useCallback((variant: TerminalVariant, content: string) => {
     setLogEntries((prev) =>
