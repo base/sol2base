@@ -1,5 +1,3 @@
-import type { ContractCallType } from './realBridgeImplementation';
-
 export type ParsedCommand =
   | { type: 'empty' }
   | { type: 'help' }
@@ -9,8 +7,7 @@ export type ParsedCommand =
   | { type: 'history' }
   | { type: 'error'; message: string }
   | { type: 'faucet'; asset: string }
-  | { type: 'bridge'; payload: BridgeCommandPayload }
-  | { type: 'bridgecall'; payload: BridgeCallCommandPayload };
+  | { type: 'bridge'; payload: BridgeCommandPayload };
 
 export interface BridgeCommandPayload {
   amount: string;
@@ -20,36 +17,24 @@ export interface BridgeCommandPayload {
 }
 
 export interface BridgeCommandFlags {
-  tobase?: boolean;
   mint?: string;
   remote?: string;
   decimals?: number;
-  callType?: ContractCallType;
-  callTarget?: string;
+  callContract?: string;
+  callSelector?: string;
+  callArgs?: string[];
   callValue?: string;
-  callData?: string;
 }
 
-export interface BridgeCallCommandPayload {
-  contract: string;
-  functionName: string;
-  args: string[];
-  value?: string;
-}
-
-const FLAG_SPECS: Record<
-  string,
-  { type: 'boolean' | 'string' | 'number'; key: keyof BridgeCommandFlags }
-> = {
-  tobase: { type: 'boolean', key: 'tobase' },
+const FLAG_SPECS = {
   mint: { type: 'string', key: 'mint' },
   remote: { type: 'string', key: 'remote' },
   decimals: { type: 'number', key: 'decimals' },
-  'call-type': { type: 'string', key: 'callType' },
-  'call-target': { type: 'string', key: 'callTarget' },
+  'call-contract': { type: 'string', key: 'callContract' },
+  'call-selector': { type: 'string', key: 'callSelector' },
+  'call-args': { type: 'args', key: 'callArgs' },
   'call-value': { type: 'string', key: 'callValue' },
-  'call-data': { type: 'string', key: 'callData' },
-};
+} as const;
 
 export function parseTerminalCommand(input: string): ParsedCommand {
   let tokens: string[];
@@ -82,8 +67,6 @@ export function parseTerminalCommand(input: string): ParsedCommand {
       return parseFaucet(rest);
     case 'bridge':
       return parseBridge(rest);
-    case 'bridgecall':
-      return parseBridgeCall(rest);
     default:
       return {
         type: 'error',
@@ -147,78 +130,31 @@ function parseBridge(args: string[]): ParsedCommand {
   }
 }
 
-function parseBridgeCall(args: string[]): ParsedCommand {
-  if (args.length < 2) {
-    return {
-      type: 'error',
-      message: "Usage: bridgecall <contract> <functionName> [--args ...] [--value <eth>]",
-    };
-  }
-
-  const [contract, functionName, ...rest] = args;
-  if (!/^0x[a-fA-F0-9]{40}$/.test(contract)) {
-    return { type: 'error', message: 'Contract address must be a 0x-prefixed 20-byte hex string.' };
-  }
-
-  const payload: BridgeCallCommandPayload = {
-    contract: contract.toLowerCase(),
-    functionName,
-    args: [],
-  };
-
-  let i = 0;
-  while (i < rest.length) {
-    const token = rest[i];
-    if (!token.startsWith('--')) {
-      return { type: 'error', message: `Unexpected token "${token}". Flags must start with "--".` };
-    }
-
-    const key = token.slice(2).toLowerCase();
-    if (key === 'args') {
-      i += 1;
-      const collected: string[] = [];
-      while (i < rest.length && !rest[i].startsWith('--')) {
-        collected.push(rest[i]);
-        i += 1;
-      }
-      payload.args = collected;
-      continue;
-    }
-
-    if (key === 'value') {
-      const value = rest[i + 1];
-      if (!value) {
-        return { type: 'error', message: 'Flag "--value" requires a numeric amount in ETH.' };
-      }
-      payload.value = value;
-      i += 2;
-      continue;
-    }
-
-    return { type: 'error', message: `Unknown bridgecall flag "--${key}".` };
-  }
-
-  return { type: 'bridgecall', payload };
-}
-
 function parseFlags(tokens: string[]): BridgeCommandFlags {
   const flags: BridgeCommandFlags = {};
 
-  for (let i = 0; i < tokens.length; i += 1) {
+  let i = 0;
+  while (i < tokens.length) {
     const token = tokens[i];
     if (!token.startsWith('--')) {
       throw new Error(`Unexpected token "${token}". Flags must start with "--".`);
     }
 
-    const key = token.slice(2).toLowerCase();
+    const key = token.slice(2).toLowerCase() as keyof typeof FLAG_SPECS;
     const spec = FLAG_SPECS[key];
 
     if (!spec) {
       throw new Error(`Unknown flag "--${key}".`);
     }
 
-    if (spec.type === 'boolean') {
-      flags[spec.key] = true as BridgeCommandFlags[typeof spec.key];
+    if (spec.type === 'args') {
+      i += 1;
+      const values: string[] = [];
+      while (i < tokens.length && !tokens[i].startsWith('--')) {
+        values.push(tokens[i]);
+        i += 1;
+      }
+      flags[spec.key] = values;
       continue;
     }
 
@@ -227,26 +163,24 @@ function parseFlags(tokens: string[]): BridgeCommandFlags {
       throw new Error(`Flag "--${key}" requires a value.`);
     }
 
-    i += 1;
+    i += 2;
     if (spec.type === 'number') {
       const parsed = Number(value);
       if (!Number.isFinite(parsed) || parsed < 0) {
         throw new Error(`Flag "--${key}" must be a positive number.`);
       }
-      flags[spec.key] = parsed as BridgeCommandFlags[typeof spec.key];
+      flags[spec.key] = parsed;
     } else {
-      if (spec.key === 'callType') {
-        flags.callType = value.toLowerCase() as ContractCallType;
-      } else {
-        flags[spec.key] = value as BridgeCommandFlags[typeof spec.key];
-      }
+      flags[spec.key] = value;
     }
   }
 
-  if (flags.callType && !isValidCallType(flags.callType)) {
-    throw new Error(
-      `Invalid call type "${flags.callType}". Use call | delegatecall | create | create2.`
-    );
+  if ((flags.callSelector || flags.callArgs?.length || flags.callValue) && !flags.callContract) {
+    throw new Error('Specify --call-contract when adding call details.');
+  }
+
+  if ((flags.callContract || flags.callArgs?.length || flags.callValue) && !flags.callSelector) {
+    throw new Error('Specify --call-selector when adding call details.');
   }
 
   return flags;
@@ -299,13 +233,5 @@ function tokenize(input: string): string[] {
   }
 
   return tokens;
-}
-
-function isValidCallType(value: string): value is ContractCallType {
-  const normalized = value.toLowerCase();
-  return normalized === 'call'
-    || normalized === 'delegatecall'
-    || normalized === 'create'
-    || normalized === 'create2';
 }
 

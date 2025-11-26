@@ -9,9 +9,9 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col min-h-screen">
         <header className="flex items-center justify-between pb-6 border-b border-green-500/30 mb-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-green-400">sol2base</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-green-400">Solase Terminal</p>
             <p className="text-sm text-green-300/80">
-              Solana devnet → Base Sepolia :: interactive bridge terminal
+              Solana devnet → Base Sepolia :: Solase Terminal bridge
             </p>
           </div>
           <WalletConnection />

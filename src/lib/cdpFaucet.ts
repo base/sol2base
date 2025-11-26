@@ -1,52 +1,11 @@
+import { CdpClient } from "@coinbase/cdp-sdk";
+
 /**
- * CDP Faucet Service for Base Sepolia USDC
- * Uses the official Coinbase Developer Platform Faucet API
+ * CDP Faucet Service for Solana Devnet SOL.
+ * Mirrors the official Coinbase Developer Platform faucet example.
  */
-interface CdpClientShape {
-  configure(config: { apiKeyId: string; apiKeySecret: string; walletSecret?: string }): Promise<void>;
-  solana: {
-    requestFaucet(params: { address: string; network: string; token: string }): Promise<Record<string, string>>;
-  };
-}
-
 export class CdpFaucetService {
-  private cdp: CdpClientShape | null = null;
-  private initialized = false;
-
-  constructor() {
-    // CDP client will be initialized lazily when first used
-  }
-
-  /**
-   * Initialize the CDP client with environment variables
-   */
-  private async initialize(): Promise<void> {
-    if (this.initialized) return;
-
-    // Check if required environment variables are set
-    if (!process.env.CDP_API_KEY_ID || !process.env.CDP_API_KEY_SECRET) {
-      throw new Error(
-        'CDP API credentials not found. Please set CDP_API_KEY_ID and CDP_API_KEY_SECRET in your .env.local file'
-      );
-    }
-
-    try {
-      // Dynamically import CDP SDK only when needed (at runtime)
-      const { CdpClient } = await import("@coinbase/cdp-sdk");
-      this.cdp = new CdpClient() as CdpClientShape;
-      
-      await this.cdp.configure({
-        apiKeyId: process.env.CDP_API_KEY_ID || '',
-        apiKeySecret: process.env.CDP_API_KEY_SECRET || '',
-        walletSecret: process.env.CDP_WALLET_SECRET || ''
-      });
-    } catch (error) {
-      console.error('Failed to initialize CDP client:', error);
-      throw new Error('CDP client initialization failed. Please check your API credentials.');
-    }
-
-    this.initialized = true;
-  }
+  private cdp = new CdpClient();
 
   /**
    * Request SOL from CDP Faucet for Solana Devnet
@@ -55,10 +14,10 @@ export class CdpFaucetService {
    */
   async requestSol(address: string): Promise<{ transactionHash: string; amount: number }> {
     try {
-      await this.initialize();
-
-      if (!this.cdp) {
-        throw new Error('CDP client not initialized.');
+      if (!(await this.isConfigured())) {
+        throw new Error(
+          'CDP API credentials not found. Please set CDP_API_KEY_ID and CDP_API_KEY_SECRET in your .env.local file'
+        );
       }
 
       // Validate Solana address format (base58, typically 32-44 characters)
@@ -70,9 +29,9 @@ export class CdpFaucetService {
 
       // Request SOL from CDP faucet for Solana Devnet
       const faucetResponse = await this.cdp.solana.requestFaucet({
-        address: address,
+        address,
         network: "solana-devnet",
-        token: "sol"
+        token: "sol",
       });
 
       console.log(`CDP Faucet response:`, faucetResponse);
@@ -117,13 +76,7 @@ export class CdpFaucetService {
    * Check if the CDP faucet service is properly configured
    */
   async isConfigured(): Promise<boolean> {
-    try {
-      await this.initialize();
-      return true;
-    } catch (error) {
-      console.warn('CDP Faucet not configured:', error);
-      return false;
-    }
+    return Boolean(process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET);
   }
 
   /**

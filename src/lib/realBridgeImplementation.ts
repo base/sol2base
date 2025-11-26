@@ -105,14 +105,14 @@ export class RealBridgeImplementation {
 
       const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
 
-      console.info('[sol2base] env=devnet-prod');
-      console.info('[sol2base] asset:', asset.label);
-      console.info('[sol2base] salt32:', `0x${saltBuffer.toString('hex')}`);
-      console.info('[sol2base] outgoingMessagePDA:', outgoingMessagePda.toBase58());
-      console.info('[sol2base] messageToRelayPDA:', messageToRelayPda.toBase58());
-      console.info('[sol2base] to:', destinationAddress.toLowerCase());
-      console.info('[sol2base] remoteToken:', asset.remoteAddress);
-      console.info('[sol2base] gasLimit:', DEFAULT_GAS_LIMIT.toString());
+      console.info('[solase-terminal] env=devnet-prod');
+      console.info('[solase-terminal] asset:', asset.label);
+      console.info('[solase-terminal] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[solase-terminal] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[solase-terminal] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[solase-terminal] to:', destinationAddress.toLowerCase());
+      console.info('[solase-terminal] remoteToken:', asset.remoteAddress);
+      console.info('[solase-terminal] gasLimit:', DEFAULT_GAS_LIMIT.toString());
 
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {
@@ -224,15 +224,15 @@ export class RealBridgeImplementation {
 
       const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
 
-      console.info('[sol2base] env=devnet-prod');
-      console.info('[sol2base] asset:', asset.label);
-      console.info('[sol2base] mint:', asset.mint.toBase58());
-      console.info('[sol2base] tokenVault:', tokenVaultAddress.toBase58());
-      console.info('[sol2base] salt32:', `0x${saltBuffer.toString('hex')}`);
-      console.info('[sol2base] outgoingMessagePDA:', outgoingMessagePda.toBase58());
-      console.info('[sol2base] messageToRelayPDA:', messageToRelayPda.toBase58());
-      console.info('[sol2base] to:', destinationAddress.toLowerCase());
-      console.info('[sol2base] remoteToken:', asset.remoteAddress);
+      console.info('[solase-terminal] env=devnet-prod');
+      console.info('[solase-terminal] asset:', asset.label);
+      console.info('[solase-terminal] mint:', asset.mint.toBase58());
+      console.info('[solase-terminal] tokenVault:', tokenVaultAddress.toBase58());
+      console.info('[solase-terminal] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[solase-terminal] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[solase-terminal] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[solase-terminal] to:', destinationAddress.toLowerCase());
+      console.info('[solase-terminal] remoteToken:', asset.remoteAddress);
 
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {

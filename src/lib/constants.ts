@@ -7,7 +7,7 @@ export const BASE_NETWORK = "base-sepolia" as const;
 // WSOL address for devnet-prod deployment (verified working)
 // Use env var to override if needed for different environments
 export const REMOTE_WSOL_ADDR_HEX = 
-  (process.env.NEXT_PUBLIC_BASE_WSOL || "0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD").toLowerCase();
+  (process.env.NEXT_PUBLIC_BASE_WSOL || "0xCace0c896714DaF7098FFD8CC54aFCFe0338b4BC").toLowerCase();
 
 console.log("🔧 Using Base WSOL address:", REMOTE_WSOL_ADDR_HEX);
 if (!process.env.NEXT_PUBLIC_BASE_WSOL) {

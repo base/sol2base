@@ -15,34 +15,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: "sol2base - Solana to Base Bridge",
-  description: "Bridge SOL from Solana Devnet to Base Sepolia using the official Base/Solana bridge. Hacker-themed UI with real cross-chain functionality.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  title: "Solase Terminal - Solana to Base Bridge",
+  description:
+    "Solase Terminal bridges SOL and SPL tokens from Solana Devnet to Base Sepolia with a hacker-friendly command terminal.",
   icons: {
     icon: '/bridge-icon.svg',
     shortcut: '/bridge-icon.svg',
     apple: '/bridge-icon.svg',
   },
   openGraph: {
-    title: "sol2base - Solana to Base Bridge",
+    title: "Solase Terminal - Solana to Base Bridge",
     description: "Bridge SOL from Solana Devnet to Base Sepolia",
-    url: "https://sol2base.xyz",
-    siteName: "sol2base",
+    url: "https://solase-terminal.xyz",
+    siteName: "Solase Terminal",
     images: [
       {
-        url: "/assets/sol2base.png",
+        url: "/assets/solase-terminal.png",
         width: 800,
         height: 600,
-        alt: "sol2base Bridge"
-      }
+        alt: "Solase Terminal Bridge",
+      },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "sol2base - Solana to Base Bridge",
+    title: "Solase Terminal - Solana to Base Bridge",
     description: "Bridge SOL from Solana Devnet to Base Sepolia",
-    images: ["/assets/sol2base.png"],
+    images: ["/assets/solase-terminal.png"],
   },
 };
 

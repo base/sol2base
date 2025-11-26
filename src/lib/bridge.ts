@@ -135,7 +135,7 @@ export class SolanaBridge {
     }
 
     const { addressResolver } = await import('./addressResolver');
-
+    
     console.log(`Resolving destination address: ${destinationAddress}`);
     const resolvedAddress = await addressResolver.resolveAddress(destinationAddress);
     console.log(`Resolved to: ${resolvedAddress}`);

@@ -1,7 +1,7 @@
-# sol2base
+# Solase Terminal
 
 <div align="center">
-  <img src="assets/sol2base.png" alt="sol2base Bridge" width="800" />
+  <img src="assets/solase-terminal.png" alt="Solase Terminal Bridge" width="800" />
 </div>
 
 <div align="center">
@@ -11,7 +11,7 @@
 
 <div align="center">
   
-![sol2base Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
+![Solase Terminal Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
 
 </div>
 
@@ -35,8 +35,8 @@
 
 1. clone the repo:
 ```bash
-git clone https://github.com/Jnix2007/sol2base.git
-cd sol2base
+git clone https://github.com/Jnix2007/solase-terminal.git
+cd solase-terminal
 ```
 
 2. install dependencies:
@@ -108,7 +108,7 @@ I was going for a fun "hacker" aesthetic:
 ### project structure
 
 ```
-sol2base/
+solase-terminal/
 ├── src/
 │   ├── app/                 # Next.js app router
 │   ├── components/          # React components
@@ -159,7 +159,7 @@ The Base team that put this together is cracked and it was dope to be at Basecam
 
 ## 🔗 links & useful onchain addresses
 
-- **Live Demo**: https://sol2base.xyz/
+- **Live Demo**: https://solase-terminal.xyz/
 - **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
 - **Solana docs**: [docs.solana.com](https://docs.solana.com)
 - **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)

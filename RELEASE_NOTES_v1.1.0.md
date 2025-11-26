@@ -1,8 +1,8 @@
-# sol2base v1.1.0 - Base Bridge v0.3.0 Compatibility Update
+# Solase Terminal v1.1.0 - Base Bridge v0.3.0 Compatibility Update
 
 ## **working e2e Bridge restored**
 
-This release updates sol2base to be compatible with the Base team's September 24, 2025 bridge infrastructure redeploy (v0.3.0), which included breaking changes. The bridge now works end-to-end again, with completion times of just a few seconds for WSOL to land on Base Sepolia.
+This release updates Solase Terminal to be compatible with the Base team's September 24, 2025 bridge infrastructure redeploy (v0.3.0), which included breaking changes. The bridge now works end-to-end again, with completion times of just a few seconds for WSOL to land on Base Sepolia.
 
 ## **breaking changes from Base Team redeploy**
 
