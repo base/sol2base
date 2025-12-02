@@ -92,8 +92,8 @@ export class RealBridgeImplementation {
 
     return {
       saltBuffer,
-      outgoingMessagePda: deriveOutgoingMessagePda(saltBuffer),
-      messageToRelayPda: deriveMessageToRelayPda(saltBuffer),
+      outgoingMessagePda: deriveOutgoingMessagePda(saltBuffer, this.bridgeProgramId),
+      messageToRelayPda: deriveMessageToRelayPda(saltBuffer, this.baseRelayerProgramId),
     };
   }
 

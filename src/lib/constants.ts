@@ -62,7 +62,7 @@ const MAINNET_REMOTE_WSOL =
 
 const MAINNET_GAS_RECEIVER =
   process.env.NEXT_PUBLIC_SOLANA_MAINNET_GAS_RECEIVER ||
-  "AFs1LCbodhvwpgX3u3URLsud6R1XMSaMiQ5LtXw4GKYT";
+  "4m2jaKbJ4pDZw177BmLPMLsztPF5eVFo2fvxPgajdBNz";
 
 if (!process.env.NEXT_PUBLIC_BASE_SEPOLIA_WSOL) {
   console.log("[terminally-onchain] using default Base Sepolia WSOL address");
@@ -95,7 +95,7 @@ const DEVNET_SOLANA_CONFIG: SolanaClusterConfig = {
 
 const MAINNET_SOLANA_CONFIG: SolanaClusterConfig = {
   name: "Solana Mainnet",
-  rpcUrl: "https://api.mainnet-beta.solana.com",
+  rpcUrl: "https://solana-rpc.publicnode.com",
   blockExplorer: "https://explorer.solana.com",
   solanaBridge: new PublicKey("HNCne2FkVaNghhjKXapxJzPaBvAKDG1Ge3gqhZyfVWLM"),
   baseRelayerProgram: new PublicKey("g1et5VenhfJHJwsdJsDbxWZuotD5H4iELNG61kS4fb9"),
@@ -117,7 +117,7 @@ const MAINNET_BASE_CONFIG: BaseNetworkConfig = {
   name: "Base Mainnet",
   rpcUrl: "https://mainnet.base.org",
   blockExplorer: "https://basescan.org",
-  bridge: "0x3eff766c76a1be2ce1acff2b69c78bcae257d5188",
+  bridge: "0x3eff766C76a1be2Ce1aCF2B69c78bCae257D5188",
   bridgeValidator: "0xaf24c1c24ff3bf1e6d882518120fc25442d6794b",
   crossChainFactory: "0xdd56781d0509650f8c2981231b6c917f2d5d7df2",
   relayerOrchestrator: "0x8cfa6f29930e6310b6074bab0052c14a709b4741",

@@ -15,7 +15,6 @@ import { base as baseMainnet, baseSepolia } from "viem/chains";
 import { formatUnits } from "ethers";
 import { solanaBridge, type BridgeAssetOverrides } from "../lib/bridge";
 import {
-  ENVIRONMENT_CHOICES,
   PROJECT_TAGLINE,
   getEnvironmentPreset,
   type BridgeEnvironment,
@@ -68,7 +67,7 @@ const toBytes32Hex = (pubkey: PublicKey): `0x${string}` =>
 export const MainContent: React.FC = () => {
   const { publicKey, connected, signTransaction } = useWallet();
   const { connection } = useConnection();
-  const { config, environment, setEnvironment } = useNetwork();
+  const { config, environment } = useNetwork();
   
   const [commandBatch, setCommandBatch] = useState("");
   const [isLocked, setIsLocked] = useState(false);
@@ -109,7 +108,7 @@ export const MainContent: React.FC = () => {
   const exampleTwinDestination = twinAddress ?? "0xYOUR_TWIN";
   const exampleCommand = `bridge 0.0001 sol ${exampleTwinDestination} --call-contract ${
     config.base.wrappedSOL
-  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 100000000000000`;
+  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 1000`;
 
   const appendLog = useCallback((variant: TerminalVariant, content: string) => {
     setLogEntries((prev) =>
@@ -643,32 +642,6 @@ export const MainContent: React.FC = () => {
 
     return (
     <div className="flex-1 flex flex-col space-y-6">
-      <section className="bg-black/60 border border-green-500/30 rounded-lg p-4 shadow-lg shadow-green-500/10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-green-300 uppercase tracking-[0.2em] text-xs">network</h3>
-          <p className="text-xs text-green-300/80">{PROJECT_TAGLINE}</p>
-          <p className="text-[11px] text-green-400/80 mt-1">{config.label}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {ENVIRONMENT_CHOICES.map((option) => {
-            const isActive = option.id === environment;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setEnvironment(option.id as BridgeEnvironment)}
-                className={`px-3 py-1 text-xs rounded border ${
-                  isActive
-                    ? "border-green-400 bg-green-500/20 text-green-100"
-                    : "border-green-500/40 text-green-300 hover:bg-green-400/10"
-                } transition-colors`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-            </div>
-      </section>
       <section className="bg-black/60 border border-green-500/30 rounded-lg p-4 shadow-lg shadow-green-500/10">
         <div className="text-green-200 text-xs space-y-2">
           <div className="flex items-center justify-between">
@@ -757,7 +730,7 @@ export const MainContent: React.FC = () => {
         <textarea
           value={commandBatch}
           onChange={(event) => setCommandBatch(event.target.value)}
-          rows={5}
+          rows={8}
           spellCheck={false}
           disabled={isLocked}
           placeholder={
@@ -765,7 +738,7 @@ export const MainContent: React.FC = () => {
               ? `bridge 0.2 sol 0xabc --call-contract 0xdef --call-selector transfer(address,uint256) --call-args 0xrecipient 1000000`
               : "connect a wallet to start bridging"
           }
-          className="mt-3 w-full bg-black/80 border border-green-500/40 rounded px-3 py-2 text-green-100 placeholder-green-800 font-mono text-sm focus:outline-none focus:border-green-400 disabled:opacity-60"
+          className="mt-3 w-full bg-black/80 border border-green-500/40 rounded px-3 py-2 text-green-100 placeholder-green-800 font-mono text-sm focus:outline-none focus:border-green-400 disabled:opacity-60 min-h-48 sm:min-h-56 lg:min-h-72 resize-vertical"
         />
         <button
           type="button"

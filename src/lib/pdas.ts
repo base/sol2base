@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { BRIDGE_PROGRAM_ID, RELAYER_PROGRAM_ID } from './constants';
 
 export function hexTo32(bytesHex: string): Buffer {
   const h = bytesHex.startsWith("0x") ? bytesHex.slice(2) : bytesHex;
@@ -13,20 +12,26 @@ export function normalizeSalt(salt: Uint8Array | string): Buffer {
   return Buffer.from(salt);
 }
 
-export function deriveOutgoingMessagePda(salt: Uint8Array | string): PublicKey {
+export function deriveOutgoingMessagePda(
+  salt: Uint8Array | string,
+  bridgeProgramId: PublicKey
+): PublicKey {
   const s = normalizeSalt(salt);
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("outgoing_message"), s],
-    new PublicKey(BRIDGE_PROGRAM_ID)
+    bridgeProgramId
   );
   return pda;
 }
 
-export function deriveMessageToRelayPda(salt: Uint8Array | string): PublicKey {
+export function deriveMessageToRelayPda(
+  salt: Uint8Array | string,
+  relayerProgramId: PublicKey
+): PublicKey {
   const s = normalizeSalt(salt);
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from("mtr"), s],
-    new PublicKey(RELAYER_PROGRAM_ID)
+    relayerProgramId
   );
   return pda;
 }
