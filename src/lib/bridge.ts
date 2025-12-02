@@ -2,9 +2,11 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction } from '@solana/we
 import { getAssociatedTokenAddress, getAccount, getMint, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { formatUnits, parseUnits } from 'ethers';
 import {
-  SOLANA_DEVNET_CONFIG,
-  DEFAULT_BRIDGEABLE_ASSETS,
+  DEFAULT_ENVIRONMENT,
+  getEnvironmentPreset,
   type BridgeAssetConfig,
+  type BridgeEnvironment,
+  type BridgeEnvironmentConfig,
 } from './constants';
 import { realBridgeImplementation } from './realBridgeImplementation';
 import type { BaseContractCall, BridgeAssetDetails } from './realBridgeImplementation';
@@ -40,13 +42,36 @@ interface SplBalanceCheckResult {
 
 export class SolanaBridge {
   private connection: Connection;
+  private environmentKey: BridgeEnvironment;
+  private environmentConfig: BridgeEnvironmentConfig;
 
   constructor() {
-    this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
+    this.environmentKey = DEFAULT_ENVIRONMENT;
+    this.environmentConfig = getEnvironmentPreset(this.environmentKey);
+    this.connection = new Connection(this.environmentConfig.solana.rpcUrl, 'confirmed');
+    realBridgeImplementation.setSolanaConfig(this.environmentConfig.solana);
   }
 
   getSupportedAssets(): BridgeAssetConfig[] {
-    return DEFAULT_BRIDGEABLE_ASSETS;
+    return this.environmentConfig.assets;
+  }
+
+  getEnvironment(): BridgeEnvironment {
+    return this.environmentKey;
+  }
+
+  getEnvironmentConfig(): BridgeEnvironmentConfig {
+    return this.environmentConfig;
+  }
+
+  setEnvironment(env: BridgeEnvironment) {
+    if (env === this.environmentKey) {
+      return;
+    }
+    this.environmentKey = env;
+    this.environmentConfig = getEnvironmentPreset(env);
+    this.connection = new Connection(this.environmentConfig.solana.rpcUrl, 'confirmed');
+    realBridgeImplementation.setSolanaConfig(this.environmentConfig.solana);
   }
 
   /**
@@ -178,7 +203,7 @@ export class SolanaBridge {
     const rawSymbol = symbol.trim();
     const normalizedSymbol = rawSymbol.toLowerCase();
     const isMintAddress = SolanaBridge.BASE58_MINT_REGEX.test(rawSymbol);
-    const base = DEFAULT_BRIDGEABLE_ASSETS.find(asset => asset.symbol === normalizedSymbol);
+    const base = this.environmentConfig.assets.find(asset => asset.symbol === normalizedSymbol);
     const forceSpl = isMintAddress || !!(overrides?.mint || overrides?.remote || overrides?.decimals);
     const type: 'sol' | 'spl' =
       forceSpl || base?.type === 'spl' || normalizedSymbol !== 'sol' ? 'spl' : 'sol';

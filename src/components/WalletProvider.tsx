@@ -7,7 +7,7 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
-import { clusterApiUrl } from "@solana/web3.js";
+import { useNetwork } from "../contexts/NetworkContext";
 
 const WalletModalProviderDynamic = dynamic(
   async () => {
@@ -24,11 +24,11 @@ const WalletModalProviderDynamic = dynamic(
   { ssr: false }
 );
 
-const endpoint = clusterApiUrl("devnet");
-
 export const SolanaWalletProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const { config } = useNetwork();
+  const endpoint = config.solana.rpcUrl;
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
     []

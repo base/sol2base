@@ -9,7 +9,12 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { parseUnits } from 'ethers';
 import { deriveOutgoingMessagePda, deriveMessageToRelayPda, normalizeSalt } from './pdas';
-import { SOLANA_DEVNET_CONFIG, DEFAULT_GAS_LIMIT } from './constants';
+import {
+  DEFAULT_ENVIRONMENT,
+  DEFAULT_GAS_LIMIT,
+  getEnvironmentPreset,
+  type SolanaClusterConfig,
+} from './constants';
 
 export type ContractCallType = 'call' | 'delegatecall' | 'create' | 'create2';
 
@@ -47,6 +52,7 @@ export class RealBridgeImplementation {
   private connection: Connection;
   private bridgeProgramId: PublicKey;
   private baseRelayerProgramId: PublicKey;
+  private solanaConfig: SolanaClusterConfig;
   private static readonly CALL_TYPE_INDEX: Record<ContractCallType, number> = {
     call: 0,
     delegatecall: 1,
@@ -54,10 +60,18 @@ export class RealBridgeImplementation {
     create2: 3,
   };
 
-  constructor() {
-    this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
-    this.bridgeProgramId = SOLANA_DEVNET_CONFIG.solanaBridge;
-    this.baseRelayerProgramId = SOLANA_DEVNET_CONFIG.baseRelayerProgram;
+  constructor(config: SolanaClusterConfig = getEnvironmentPreset(DEFAULT_ENVIRONMENT).solana) {
+    this.solanaConfig = config;
+    this.connection = new Connection(config.rpcUrl, 'confirmed');
+    this.bridgeProgramId = config.solanaBridge;
+    this.baseRelayerProgramId = config.baseRelayerProgram;
+  }
+
+  setSolanaConfig(config: SolanaClusterConfig) {
+    this.solanaConfig = config;
+    this.connection = new Connection(config.rpcUrl, 'confirmed');
+    this.bridgeProgramId = config.solanaBridge;
+    this.baseRelayerProgramId = config.baseRelayerProgram;
   }
 
   /**
@@ -105,21 +119,23 @@ export class RealBridgeImplementation {
 
       const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
 
-      console.info('[solase-terminal] env=devnet-prod');
-      console.info('[solase-terminal] asset:', asset.label);
-      console.info('[solase-terminal] salt32:', `0x${saltBuffer.toString('hex')}`);
-      console.info('[solase-terminal] outgoingMessagePDA:', outgoingMessagePda.toBase58());
-      console.info('[solase-terminal] messageToRelayPDA:', messageToRelayPda.toBase58());
-      console.info('[solase-terminal] to:', destinationAddress.toLowerCase());
-      console.info('[solase-terminal] remoteToken:', asset.remoteAddress);
-      console.info('[solase-terminal] gasLimit:', DEFAULT_GAS_LIMIT.toString());
+      console.info('[terminally-onchain] env:', this.solanaConfig.name);
+      console.info('[terminally-onchain] asset:', asset.label);
+      console.info('[terminally-onchain] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[terminally-onchain] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[terminally-onchain] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[terminally-onchain] to:', destinationAddress.toLowerCase());
+      console.info('[terminally-onchain] remoteToken:', asset.remoteAddress);
+      console.info('[terminally-onchain] gasLimit:', DEFAULT_GAS_LIMIT.toString());
 
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {
-        throw new Error('Bridge account not found. The bridge may not be initialized on Solana Devnet.');
+        throw new Error(
+          `Bridge account not found. The bridge may not be initialized on ${this.solanaConfig.name}.`
+        );
       }
 
-      const gasFeeReceiver = SOLANA_DEVNET_CONFIG.gasFeeReceiver;
+      const gasFeeReceiver = this.solanaConfig.gasFeeReceiver;
 
       const [cfgAddress] = PublicKey.findProgramAddressSync(
         [Buffer.from('config')],
@@ -224,22 +240,24 @@ export class RealBridgeImplementation {
 
       const { saltBuffer, outgoingMessagePda, messageToRelayPda } = this.createSaltBundle();
 
-      console.info('[solase-terminal] env=devnet-prod');
-      console.info('[solase-terminal] asset:', asset.label);
-      console.info('[solase-terminal] mint:', asset.mint.toBase58());
-      console.info('[solase-terminal] tokenVault:', tokenVaultAddress.toBase58());
-      console.info('[solase-terminal] salt32:', `0x${saltBuffer.toString('hex')}`);
-      console.info('[solase-terminal] outgoingMessagePDA:', outgoingMessagePda.toBase58());
-      console.info('[solase-terminal] messageToRelayPDA:', messageToRelayPda.toBase58());
-      console.info('[solase-terminal] to:', destinationAddress.toLowerCase());
-      console.info('[solase-terminal] remoteToken:', asset.remoteAddress);
+      console.info('[terminally-onchain] env:', this.solanaConfig.name);
+      console.info('[terminally-onchain] asset:', asset.label);
+      console.info('[terminally-onchain] mint:', asset.mint?.toBase58());
+      console.info('[terminally-onchain] tokenVault:', tokenVaultAddress.toBase58());
+      console.info('[terminally-onchain] salt32:', `0x${saltBuffer.toString('hex')}`);
+      console.info('[terminally-onchain] outgoingMessagePDA:', outgoingMessagePda.toBase58());
+      console.info('[terminally-onchain] messageToRelayPDA:', messageToRelayPda.toBase58());
+      console.info('[terminally-onchain] to:', destinationAddress.toLowerCase());
+      console.info('[terminally-onchain] remoteToken:', asset.remoteAddress);
 
       const bridgeAccountInfo = await this.connection.getAccountInfo(bridgeAddress);
       if (!bridgeAccountInfo) {
-        throw new Error('Bridge account not found. The bridge may not be initialized on Solana Devnet.');
+        throw new Error(
+          `Bridge account not found. The bridge may not be initialized on ${this.solanaConfig.name}.`
+        );
       }
 
-      const gasFeeReceiver = SOLANA_DEVNET_CONFIG.gasFeeReceiver;
+      const gasFeeReceiver = this.solanaConfig.gasFeeReceiver;
 
       const [cfgAddress] = PublicKey.findProgramAddressSync(
         [Buffer.from('config')],

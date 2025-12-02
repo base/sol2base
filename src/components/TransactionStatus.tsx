@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BridgeTransaction } from './BridgeInterface';
+import { useNetwork } from '../contexts/NetworkContext';
 
 interface TransactionStatusProps {
   transactions: BridgeTransaction[];
@@ -10,6 +11,7 @@ interface TransactionStatusProps {
 export const TransactionStatus: React.FC<TransactionStatusProps> = ({
   transactions
 }) => {
+  const { config } = useNetwork();
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
@@ -66,11 +68,11 @@ export const TransactionStatus: React.FC<TransactionStatusProps> = ({
   };
 
   const getSolanaExplorerLink = (txHash: string) => {
-    return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
+    return `${config.solana.blockExplorer}/tx/${txHash}${config.solana.explorerTxSuffix ?? ""}`;
   };
 
   const getBaseExplorerLink = (txHash: string) => {
-    return `https://sepolia.basescan.org/tx/${txHash}`;
+    return `${config.base.blockExplorer}/tx/${txHash}`;
   };
 
   const getStatusText = (status: string) => {

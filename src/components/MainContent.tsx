@@ -11,10 +11,16 @@ import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import { encodeFunctionData, createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base as baseMainnet, baseSepolia } from "viem/chains";
 import { formatUnits } from "ethers";
 import { solanaBridge, type BridgeAssetOverrides } from "../lib/bridge";
-import { BASE_SEPOLIA_CONFIG } from "../lib/constants";
+import {
+  ENVIRONMENT_CHOICES,
+  PROJECT_TAGLINE,
+  getEnvironmentPreset,
+  type BridgeEnvironment,
+} from "../lib/constants";
+import { useNetwork } from "../contexts/NetworkContext";
 import {
   parseTerminalCommand,
   type ParsedCommand,
@@ -62,10 +68,13 @@ const toBytes32Hex = (pubkey: PublicKey): `0x${string}` =>
 export const MainContent: React.FC = () => {
   const { publicKey, connected, signTransaction } = useWallet();
   const { connection } = useConnection();
-
+  const { config, environment, setEnvironment } = useNetwork();
+  
   const [commandBatch, setCommandBatch] = useState("");
   const [isLocked, setIsLocked] = useState(false);
-  const [recentSignatures, setRecentSignatures] = useState<string[]>([]);
+  const [recentSignatures, setRecentSignatures] = useState<
+    { signature: string; environment: BridgeEnvironment }[]
+  >([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [pendingBridge, setPendingBridge] =
     useState<BridgeCommandPayload | null>(null);
@@ -85,20 +94,22 @@ export const MainContent: React.FC = () => {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
-  const supportedAssets = useMemo(() => solanaBridge.getSupportedAssets(), []);
+  const supportedAssets = solanaBridge.getSupportedAssets();
   const baseClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: baseSepolia,
-        transport: http(BASE_SEPOLIA_CONFIG.rpcUrl),
-      }),
-    []
+    () => {
+      const chain = config.base.chainId === baseMainnet.id ? baseMainnet : baseSepolia;
+      return createPublicClient({
+        chain,
+        transport: http(config.base.rpcUrl),
+      });
+    },
+    [config.base]
   );
   const zeroAddress = "0x0000000000000000000000000000000000000000";
   const exampleTwinDestination = twinAddress ?? "0xYOUR_TWIN";
   const exampleCommand = `bridge 0.0001 sol ${exampleTwinDestination} --call-contract ${
-    BASE_SEPOLIA_CONFIG.wrappedSOL
-  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 10000`;
+    config.base.wrappedSOL
+  } --call-selector "transfer(address,uint256)" --call-args ${zeroAddress} 100000000000000`;
 
   const appendLog = useCallback((variant: TerminalVariant, content: string) => {
     setLogEntries((prev) =>
@@ -144,7 +155,7 @@ export const MainContent: React.FC = () => {
       try {
         const sender = toBytes32Hex(publicKey);
         const address = await baseClient.readContract({
-          address: BASE_SEPOLIA_CONFIG.bridge as `0x${string}`,
+          address: config.base.bridge as `0x${string}`,
           abi: BRIDGE_ABI,
           functionName: "getPredictedTwinAddress",
           args: [sender],
@@ -165,7 +176,7 @@ export const MainContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [baseClient, publicKey]);
+  }, [baseClient, config.base.bridge, publicKey]);
 
   const runWithLock = useCallback(async (action: () => Promise<void>) => {
     setIsLocked(true);
@@ -177,10 +188,11 @@ export const MainContent: React.FC = () => {
   }, []);
 
   const printHelp = useCallback(() => {
+    appendLog("system", PROJECT_TAGLINE);
     appendLog("system", "commands:");
     appendLog(
       "system",
-      " bridge <amount> <asset> <destination> [--mint <mint> --remote <0x..> --decimals <n> --call-type <kind> --call-target <addr> --call-value <eth> --call-data <0x..>]"
+      ' bridge <amount> <asset> <destination> [--mint <mint> --remote <0x..> --decimals <n> --call-contract <addr> --call-selector "transfer(address,uint256)" --call-args <arg1> <arg2> --call-value <eth>]'
     );
     appendLog(
       "system",
@@ -227,10 +239,13 @@ export const MainContent: React.FC = () => {
     }
 
     appendLog("system", "recent signatures:");
-    recentSignatures.forEach((sig) => {
+    recentSignatures.forEach(({ signature, environment: sigEnv }) => {
+      const preset = getEnvironmentPreset(sigEnv);
       appendLog(
         "system",
-        ` • https://explorer.solana.com/tx/${sig}?cluster=devnet`
+        ` • [${preset.label}] ${preset.solana.blockExplorer}/tx/${signature}${
+          preset.solana.explorerTxSuffix ?? ""
+        }`
       );
     });
   }, [appendLog, recentSignatures]);
@@ -239,6 +254,11 @@ export const MainContent: React.FC = () => {
     async (asset: string) => {
       if (asset !== "sol") {
         appendLog("error", "Faucet command rejected: only SOL is supported.");
+        return;
+      }
+
+      if (environment !== "devnet") {
+        appendLog("error", "Faucet command rejected: available only on Solana Devnet.");
         return;
       }
 
@@ -254,16 +274,18 @@ export const MainContent: React.FC = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: publicKey.toBase58() }),
-        });
+      });
 
-        const data = await response.json();
-        if (!response.ok) {
+      const data = await response.json();
+      if (!response.ok) {
           throw new Error(data.error || "SOL faucet request failed.");
         }
 
         appendLog(
           "success",
-          `faucet success :: ${data.amount} SOL :: explorer https://explorer.solana.com/tx/${data.transactionHash}?cluster=devnet`
+          `faucet success :: ${data.amount} SOL :: explorer ${config.solana.blockExplorer}/tx/${data.transactionHash}${
+            config.solana.explorerTxSuffix ?? ""
+          }`
         );
       } catch (error) {
         const message =
@@ -271,7 +293,7 @@ export const MainContent: React.FC = () => {
         appendLog("error", message);
       }
     },
-    [appendLog, publicKey]
+    [appendLog, config.solana, environment, publicKey]
   );
 
   const encodeCall = useCallback(
@@ -408,9 +430,7 @@ export const MainContent: React.FC = () => {
 
       appendLog(
         "system",
-        `bridge staged :: ${payload.amount} ${payload.asset.toUpperCase()} → ${
-          payload.destination
-        }`
+        `bridge staged [${config.label}] :: ${payload.amount} ${payload.asset.toUpperCase()} → ${payload.destination}`
       );
 
       if (callOption) {
@@ -425,7 +445,7 @@ export const MainContent: React.FC = () => {
         call: callOption,
       };
     },
-    [appendLog, encodeCall]
+    [appendLog, config.label, encodeCall]
   );
 
   const executeQueuedBridge = useCallback(
@@ -459,7 +479,7 @@ export const MainContent: React.FC = () => {
         });
 
         appendLog("success", `Bridge submitted :: ${signature}`);
-        setRecentSignatures((prev) => [signature, ...prev].slice(0, 8));
+        setRecentSignatures((prev) => [{ signature, environment }, ...prev].slice(0, 8));
         setPendingBridge(null);
         setBridgeOverrides(undefined);
         setPendingCall(null);
@@ -475,6 +495,7 @@ export const MainContent: React.FC = () => {
     [
       appendLog,
       bridgeOverrides,
+      environment,
       pendingBridge,
       pendingCall,
       publicKey,
@@ -486,7 +507,7 @@ export const MainContent: React.FC = () => {
     async (walletAddress: PublicKey) => {
       try {
         const solBalance = await solanaBridge.getSolBalance(walletAddress);
-        appendLog("system", `SOL :: ${solBalance.toFixed(6)} (devnet)`);
+        appendLog("system", `SOL :: ${solBalance.toFixed(6)} (${config.solana.name})`);
       } catch (error) {
         appendLog(
           "error",
@@ -519,7 +540,7 @@ export const MainContent: React.FC = () => {
         }
       }
     },
-    [appendLog, connection, supportedAssets]
+    [appendLog, config.solana.name, connection, supportedAssets]
   );
 
   const executeCommand = useCallback(
@@ -538,7 +559,7 @@ export const MainContent: React.FC = () => {
           printHistory();
           return false;
         case "balance":
-          if (!publicKey) {
+    if (!publicKey) {
             appendLog("error", "connect a Solana wallet first.");
             return false;
           }
@@ -620,13 +641,39 @@ export const MainContent: React.FC = () => {
     setCommandBatch("");
   };
 
-  return (
+    return (
     <div className="flex-1 flex flex-col space-y-6">
+      <section className="bg-black/60 border border-green-500/30 rounded-lg p-4 shadow-lg shadow-green-500/10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-green-300 uppercase tracking-[0.2em] text-xs">network</h3>
+          <p className="text-xs text-green-300/80">{PROJECT_TAGLINE}</p>
+          <p className="text-[11px] text-green-400/80 mt-1">{config.label}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {ENVIRONMENT_CHOICES.map((option) => {
+            const isActive = option.id === environment;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setEnvironment(option.id as BridgeEnvironment)}
+                className={`px-3 py-1 text-xs rounded border ${
+                  isActive
+                    ? "border-green-400 bg-green-500/20 text-green-100"
+                    : "border-green-500/40 text-green-300 hover:bg-green-400/10"
+                } transition-colors`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+            </div>
+      </section>
       <section className="bg-black/60 border border-green-500/30 rounded-lg p-4 shadow-lg shadow-green-500/10">
         <div className="text-green-200 text-xs space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-green-300 uppercase tracking-[0.2em] text-xs">
-              Quickstart example (COPY & PASTE)
+              Quickstart example
             </h3>
             <button
               type="button"
@@ -636,13 +683,16 @@ export const MainContent: React.FC = () => {
               {exampleCopied ? "Copied!" : "Copy"}
             </button>
           </div>
+          <p className="text-[11px] text-green-300/80">
+            {PROJECT_TAGLINE} — copy and execute this command to test
+          </p>
           <code className="block break-all bg-black/40 border border-green-500/30 rounded p-2 shadow-[0_0_12px_rgba(34,197,94,0.25)]">
             {exampleCommand}
           </code>
-          <p className="mt-1">
-            This bridges <span className="text-green-100 font-semibold">0.0001 SOL</span> to your Twin on
-            Base and immediately calls the WSOL ERC-20 contract to transfer the freshly minted funds
-            from your Twin to the zero address.
+          <p className="mt-1 italic text-green-200">
+            {PROJECT_TAGLINE} while bridging <span className="text-green-100 font-semibold">0.0001 SOL</span> to
+            your Twin on {config.base.name} and immediately transferring the freshly minted WSOL to the zero
+            address.
           </p>
         </div>
       </section>
@@ -661,6 +711,7 @@ export const MainContent: React.FC = () => {
             <h3 className="text-green-300 uppercase tracking-[0.2em] text-xs mb-4">
               quick guide
             </h3>
+            <p className="text-xs text-green-300/80 mb-4">{PROJECT_TAGLINE}</p>
             <ul className="text-green-200 text-sm space-y-2 list-disc list-inside mb-4">
               <li>
                 <code>bridge &lt;amount&gt; &lt;asset-or-mint&gt; &lt;base-address&gt;</code> with optional
@@ -668,7 +719,7 @@ export const MainContent: React.FC = () => {
               </li>
               <li>
                 Attach Base calls via <code>--call-contract</code>, <code>--call-selector</code>{" "}
-                (e.g. <code>&quot;function(address,uint256)&quot;</code>), <code>--call-args</code>,{" "}
+                (e.g. <code>&quot;transfer(address,uint256)&quot;</code>), <code>--call-args</code>,{" "}
                 <code>--call-value</code>.
               </li>
               <li>
@@ -699,7 +750,7 @@ export const MainContent: React.FC = () => {
           </h3>
           <div className="text-green-200 text-xs">
             {pendingBridge
-              ? `staged bridge: ${pendingBridge.amount} ${pendingBridge.asset}`
+              ? `staged bridge (${config.label}): ${pendingBridge.amount} ${pendingBridge.asset}`
               : "no bridge queued"}
           </div>
         </div>
@@ -711,7 +762,7 @@ export const MainContent: React.FC = () => {
           disabled={isLocked}
           placeholder={
             connected
-              ? `bridge 0.2 sol 0xabc --call-contract 0xdef --call-selector function(address,uint256) --call-args 0xrecipient 1000000`
+              ? `bridge 0.2 sol 0xabc --call-contract 0xdef --call-selector transfer(address,uint256) --call-args 0xrecipient 1000000`
               : "connect a wallet to start bridging"
           }
           className="mt-3 w-full bg-black/80 border border-green-500/40 rounded px-3 py-2 text-green-100 placeholder-green-800 font-mono text-sm focus:outline-none focus:border-green-400 disabled:opacity-60"

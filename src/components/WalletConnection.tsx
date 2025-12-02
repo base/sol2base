@@ -5,8 +5,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
-import { BASE_SEPOLIA_CONFIG } from "../lib/constants";
+import { base as baseMainnet, baseSepolia } from "viem/chains";
+import { useNetwork } from "../contexts/NetworkContext";
 
 const WalletMultiButton = dynamic(
   () =>
@@ -36,17 +36,20 @@ const truncateAddress = (value: string) =>
 
 export const WalletConnection: React.FC = () => {
   const { publicKey, connected } = useWallet();
+  const { config } = useNetwork();
   const [twinAddress, setTwinAddress] = useState<string | null>(null);
   const [twinError, setTwinError] = useState<string | null>(null);
   const [isTwinLoading, setIsTwinLoading] = useState(false);
 
   const baseClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: baseSepolia,
-        transport: http(BASE_SEPOLIA_CONFIG.rpcUrl),
-      }),
-    []
+    () => {
+      const chain = config.base.chainId === baseMainnet.id ? baseMainnet : baseSepolia;
+      return createPublicClient({
+        chain,
+        transport: http(config.base.rpcUrl),
+      });
+    },
+    [config.base]
   );
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export const WalletConnection: React.FC = () => {
       try {
         const sender = toBytes32Hex(publicKey);
         const address = await baseClient.readContract({
-          address: BASE_SEPOLIA_CONFIG.bridge as `0x${string}`,
+          address: config.base.bridge as `0x${string}`,
           abi: BRIDGE_ABI,
           functionName: "getPredictedTwinAddress",
           args: [sender],
@@ -94,7 +97,7 @@ export const WalletConnection: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [baseClient, publicKey]);
+  }, [baseClient, config.base.bridge, publicKey]);
 
   const twinContent = (() => {
     if (!connected) {
@@ -106,7 +109,7 @@ export const WalletConnection: React.FC = () => {
     if (twinAddress) {
       return (
         <a
-          href={`${BASE_SEPOLIA_CONFIG.blockExplorer}/address/${twinAddress}`}
+          href={`${config.base.blockExplorer}/address/${twinAddress}`}
           target="_blank"
           rel="noreferrer"
           className="text-green-300 underline"
@@ -130,6 +133,9 @@ export const WalletConnection: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="uppercase tracking-[0.2em] text-green-400">
               twin
+            </span>
+            <span className="text-[10px] uppercase text-green-400/70">
+              {config.base.name}
             </span>
             {twinContent}
             <div className="relative group flex items-center">
