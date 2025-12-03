@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const ogImageUrl = new URL("/og.png", siteUrl).toString();
+const siteUrl = "https://terminallyonchain.com/";
+const ogImageUrl = "https://terminallyonchain.com/og.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
