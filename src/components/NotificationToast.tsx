@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+
+declare global {
+  interface Window {
+    showNotification?: (notification: Omit<Notification, 'id'>) => void;
+  }
+}
 
 interface Notification {
   id: string;
@@ -111,19 +117,22 @@ interface NotificationManagerProps {
 export const NotificationManager: React.FC<NotificationManagerProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = (notification: Omit<Notification, 'id'>) => {
+  const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = Date.now().toString();
     setNotifications(prev => [...prev, { ...notification, id }]);
-  };
+  }, []);
 
-  const removeNotification = (id: string) => {
+  const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+  }, []);
 
   // Expose functions globally for easy access
   useEffect(() => {
-    (window as any).showNotification = addNotification;
-  }, []);
+    window.showNotification = addNotification;
+    return () => {
+      window.showNotification = undefined;
+    };
+  }, [addNotification]);
 
   return (
     <>

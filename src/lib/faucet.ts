@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
-import { SOLANA_DEVNET_CONFIG } from './constants';
+import { getEnvironmentPreset } from './constants';
 
 /**
  * Mock faucet service for Solana Devnet USDC
@@ -8,9 +8,10 @@ import { SOLANA_DEVNET_CONFIG } from './constants';
  */
 export class MockFaucetService {
   private connection: Connection;
+  private readonly config = getEnvironmentPreset('devnet').solana;
 
   constructor() {
-    this.connection = new Connection(SOLANA_DEVNET_CONFIG.rpcUrl, 'confirmed');
+    this.connection = new Connection(this.config.rpcUrl, 'confirmed');
   }
 
   /**
@@ -84,12 +85,12 @@ export class MockFaucetService {
   private async getTokenBalance(walletAddress: PublicKey): Promise<number> {
     try {
       const tokenAccount = await getAssociatedTokenAddress(
-        SOLANA_DEVNET_CONFIG.spl,
+        this.config.spl!,
         walletAddress
       );
       const account = await getAccount(this.connection, tokenAccount);
       return Number(account.amount) / Math.pow(10, 6); // Assuming 6 decimals
-    } catch (error) {
+    } catch {
       // Account doesn't exist or other error
       return 0;
     }

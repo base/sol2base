@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SolanaWalletProvider } from "../components/WalletProvider";
 import { NotificationManager } from "../components/NotificationToast";
+import { NetworkProvider } from "../contexts/NetworkContext";
+import { PROJECT_NAME, PROJECT_TAGLINE } from "../lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,34 +17,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: "sol2base - Solana to Base Bridge",
-  description: "Bridge SOL from Solana Devnet to Base Sepolia using the official Base/Solana bridge. Hacker-themed UI with real cross-chain functionality.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
+  description: PROJECT_TAGLINE,
   icons: {
     icon: '/bridge-icon.svg',
     shortcut: '/bridge-icon.svg',
     apple: '/bridge-icon.svg',
   },
   openGraph: {
-    title: "sol2base - Solana to Base Bridge",
-    description: "Bridge SOL from Solana Devnet to Base Sepolia",
-    url: "https://sol2base.xyz",
-    siteName: "sol2base",
+    title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
+    description: PROJECT_TAGLINE,
+    url: "https://terminallyonchain.xyz",
+    siteName: PROJECT_NAME,
     images: [
       {
-        url: "/assets/sol2base.png",
+        url: "/assets/terminally-onchain.png",
         width: 800,
         height: 600,
-        alt: "sol2base Bridge"
-      }
+        alt: "Terminally Onchain Bridge",
+      },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "sol2base - Solana to Base Bridge",
-    description: "Bridge SOL from Solana Devnet to Base Sepolia",
-    images: ["/assets/sol2base.png"],
+    title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
+    description: PROJECT_TAGLINE,
+    images: ["/assets/terminally-onchain.png"],
   },
 };
 
@@ -57,9 +59,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NotificationManager>
-          <SolanaWalletProvider>
-            {children}
-          </SolanaWalletProvider>
+          <NetworkProvider>
+            <SolanaWalletProvider>
+              {children}
+            </SolanaWalletProvider>
+          </NetworkProvider>
         </NotificationManager>
       </body>
     </html>

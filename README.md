@@ -1,23 +1,25 @@
-# sol2base
+# Terminally Onchain
 
 <div align="center">
-  <img src="assets/sol2base.png" alt="sol2base Bridge" width="800" />
+  <img src="assets/terminally-onchain.png" alt="Terminally Onchain Bridge" width="800" />
 </div>
 
 <div align="center">
-  <h3>Bridge SOL from Solana Devnet to Base Sepolia testnet</h3>
-  <h4><i>Uses the official Base Bridge launched at Basecamp on 15 Sep 2025</i></h4>
+  <h3>Call any contract on Base from your Solana wallet</h3>
+  <h4><i>Call any contract on Base from your Solana wallet</i></h4>
 </div>
 
 <div align="center">
   
-![sol2base Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
+![Terminally Onchain Bridge](https://img.shields.io/badge/Solana-Base-brightgreen) ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue)
 
 </div>
 
 ## 🌉 features
 
-- **Bridge**: SOL bridging from Solana Devnet to Base Sepolia
+- **Bridge**: SOL + SPL bridging between Solana Devnet/Mainnet and Base Sepolia/Mainnet
+- **Networks**: One-click toggle between Solana Devnet ↔ Base Sepolia and Solana Mainnet ↔ Base Mainnet
+- **Base calls**: Attach arbitrary Base contract calls with `--call-*` flags and ABI-encoded calldata
 - **Faucet**: Get SOL from Coinbase Developer Platform
 - **Address resolution**: Support for ENS names and Basenames
 - **Balance**: Live SOL balance tracking for connected wallet
@@ -35,8 +37,8 @@
 
 1. clone the repo:
 ```bash
-git clone https://github.com/Jnix2007/sol2base.git
-cd sol2base
+git clone https://github.com/Jnix2007/terminally-onchain.git
+cd terminally-onchain
 ```
 
 2. install dependencies:
@@ -55,6 +57,8 @@ CDP_API_KEY_ID=your_cdp_api_key_id
 CDP_API_KEY_SECRET=your_cdp_api_key_secret
 ```
 
+Set `NEXT_PUBLIC_ENABLE_MAINNET=true` in `.env.local` if you want the Solana ↔ Base mainnet option to appear in the UI. Leaving it undefined or any value other than `"true"` keeps the app on devnet/Base Sepolia only.
+
 5. start your dev server:
 ```bash
 npm run dev
@@ -67,8 +71,8 @@ npm run dev
 ### Bridge process
 
 1. **connect wallet**: Connect Solana wallet (Phantom/Solflare)
-2. **get SOL**: Use the integrated CDP Faucet to get SOL on Solana Devnet if needed
-3. **enter details**: Specify amount and destination (Base Sepolia address, ENS, or Basename)
+2. **get SOL**: Use the integrated CDP Faucet to get SOL on Solana Devnet (only when you stay on devnet)
+3. **enter details**: Specify amount and destination (Base address, ENS, or Basename on the active network)
 4. **Bridge!** Execute the bridge txn
 5. **monitor**: Track txn status in real-time
 
@@ -98,8 +102,8 @@ I was going for a fun "hacker" aesthetic:
 
 ## 🔗 networks
 
-- **source**: Solana Devnet
-- **destination**: Base Sepolia Testnet
+- **default**: Solana Devnet → Base Sepolia (includes CDP SOL faucet integration)
+- **mainnet**: Solana Mainnet → Base Mainnet (no faucet; bring your own SOL)
 - **Faucet**: CDP Solana Devnet SOL Faucet
 - **Backup Faucet**: [faucet.solana.com](https://faucet.solana.com)
 
@@ -108,7 +112,7 @@ I was going for a fun "hacker" aesthetic:
 ### project structure
 
 ```
-sol2base/
+terminally-onchain/
 ├── src/
 │   ├── app/                 # Next.js app router
 │   ├── components/          # React components
@@ -159,16 +163,23 @@ The Base team that put this together is cracked and it was dope to be at Basecam
 
 ## 🔗 links & useful onchain addresses
 
-- **Live Demo**: https://sol2base.xyz/
+- **Live Demo**: https://terminallyonchain.xyz/
 - **Base Bridge docs**: [github.com/base/bridge](https://github.com/base/bridge)
 - **Solana docs**: [docs.solana.com](https://docs.solana.com)
 - **CDP docs**: [docs.cdp.coinbase.com](https://docs.cdp.coinbase.com)
-- Bridge program on Solana Devnet: [HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc](https://explorer.solana.com/address/HSvNvzehozUpYhRBuCKq3Fq8udpRocTmGMUYXmCSiCCc?cluster=devnet)
-- Base Relayer program on Solana Devnet: [ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL](https://explorer.solana.com/address/ExS1gcALmaA983oiVpvFSVohi1zCtAUTgsLj5xiFPPgL?cluster=devnet)
-- Bridge contract on Base Sepolia: [0x3154Cf16ccdb4C6d922629664174b904d80F2C35](https://sepolia.basescan.org/address/0x3154Cf16ccdb4C6d922629664174b904d80F2C35)
+- Bridge program on Solana Devnet: [7c6mteAcTXaQ1MFBCrnuzoZVTTAEfZwa6wgy4bqX3KXC](https://explorer.solana.com/address/7c6mteAcTXaQ1MFBCrnuzoZVTTAEfZwa6wgy4bqX3KXC?cluster=devnet)
+- Base Relayer program on Solana Devnet: [56MBBEYAtQAdjT4e1NzHD8XaoyRSTvfgbSVVcEcHj51H](https://explorer.solana.com/address/56MBBEYAtQAdjT4e1NzHD8XaoyRSTvfgbSVVcEcHj51H?cluster=devnet)
+- Gas fee receiver (devnet): [AFs1LCbodhvwpgX3u3URLsud6R1XMSaMiQ5LtXw4GKYT](https://explorer.solana.com/address/AFs1LCbodhvwpgX3u3URLsud6R1XMSaMiQ5LtXw4GKYT?cluster=devnet)
+- Bridge contract on Base Sepolia: [0x01824a90d32A69022DdAEcC6C5C14Ed08dB4EB9B](https://sepolia.basescan.org/address/0x01824a90d32A69022DdAEcC6C5C14Ed08dB4EB9B)
 - Bridge Validator on Base Sepolia: [0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7](https://sepolia.basescan.org/address/0xa80C07DF38fB1A5b3E6a4f4FAAB71E7a056a4EC7)
-- Wrapped SOL token CA on Base Sepolia: [0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD](https://sepolia.basescan.org/address/0xC5b9112382f3c87AFE8e1A28fa52452aF81085AD)
-- Gas fee receiver address expected by Bridge program & Base Relayer program: [BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F](https://explorer.solana.com/address/BEwzVVw44VLaspWByUML23hbQmo5ndM1NPQAJsvCxC6F?cluster=devnet)
+- Wrapped SOL token CA on Base Sepolia: [0xCace0c896714DaF7098FFD8CC54aFCFe0338b4BC](https://sepolia.basescan.org/address/0xCace0c896714DaF7098FFD8CC54aFCFe0338b4BC)
+- Bridge program on Solana Mainnet: [HNCne2FkVaNghhjKXapxJzPaBvAKDG1Ge3gqhZyfVWLM](https://explorer.solana.com/address/HNCne2FkVaNghhjKXapxJzPaBvAKDG1Ge3gqhZyfVWLM)
+- Base Relayer program on Solana Mainnet: [g1et5VenhfJHJwsdJsDbxWZuotD5H4iELNG61kS4fb9](https://explorer.solana.com/address/g1et5VenhfJHJwsdJsDbxWZuotD5H4iELNG61kS4fb9)
+- Bridge contract on Base Mainnet: [0x3eff766C76a1be2Ce1aCF2B69c78bCae257D5188](https://basescan.org/address/0x3eff766C76a1be2Ce1aCF2B69c78bCae257D5188)
+- Bridge Validator on Base Mainnet: [0xAF24c1c24Ff3BF1e6D882518120fC25442d6794B](https://basescan.org/address/0xAF24c1c24Ff3BF1e6D882518120fC25442d6794B)
+- CrossChain ERC20 Factory on Base Mainnet: [0xDD56781d0509650f8C2981231B6C917f2d5d7dF2](https://basescan.org/address/0xDD56781d0509650f8C2981231B6C917f2d5d7dF2)
+- Relayer Orchestrator on Base Mainnet: [0x8Cfa6F29930E6310B6074baB0052c14a709B4741](https://basescan.org/address/0x8Cfa6F29930E6310B6074baB0052c14a709B4741)
+- Wrapped SOL token CA on Base Mainnet: [0x311935Cd80B76769bF2ecC9D8Ab7635b2139cf82](https://basescan.org/address/0x311935Cd80B76769bF2ecC9D8Ab7635b2139cf82)
 
 ---
 
