@@ -16,8 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const ogImageUrl = new URL("/og.png", siteUrl).toString();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
   description: PROJECT_TAGLINE,
   icons: {
@@ -32,7 +35,7 @@ export const metadata: Metadata = {
     siteName: PROJECT_NAME,
     images: [
       {
-        url: "/og.png",
+        url: ogImageUrl,
         width: 800,
         height: 600,
         alt: "Terminally Onchain Bridge",
@@ -44,7 +47,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
     description: PROJECT_TAGLINE,
-    images: ["/og.png"],
+    images: [ogImageUrl],
   },
 };
 
