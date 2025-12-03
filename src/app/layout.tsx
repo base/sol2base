@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     siteName: PROJECT_NAME,
     images: [
       {
-        url: "/assets/terminally-onchain.png",
+        url: "/og.png",
         width: 800,
         height: 600,
         alt: "Terminally Onchain Bridge",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${PROJECT_NAME} — ${PROJECT_TAGLINE}`,
     description: PROJECT_TAGLINE,
-    images: ["/assets/terminally-onchain.png"],
+    images: ["/og.png"],
   },
 };
 
