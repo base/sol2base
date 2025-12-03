@@ -5,8 +5,8 @@
 </div>
 
 <div align="center">
-  <h3>call any contract on base from your solana wallet</h3>
-  <h4><i>call any contract on base from your solana wallet — powered by the Base bridge launched at Basecamp on 15 Sep 2025</i></h4>
+  <h3>Call any contract on Base from your Solana wallet</h3>
+  <h4><i>Call any contract on Base from your Solana wallet</i></h4>
 </div>
 
 <div align="center">
@@ -56,6 +56,8 @@ cp env.template .env.local
 CDP_API_KEY_ID=your_cdp_api_key_id
 CDP_API_KEY_SECRET=your_cdp_api_key_secret
 ```
+
+Set `NEXT_PUBLIC_ENABLE_MAINNET=true` in `.env.local` if you want the Solana ↔ Base mainnet option to appear in the UI. Leaving it undefined or any value other than `"true"` keeps the app on devnet/Base Sepolia only.
 
 5. start your dev server:
 ```bash

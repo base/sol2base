@@ -134,9 +134,6 @@ export const WalletConnection: React.FC = () => {
             <span className="uppercase tracking-[0.2em] text-green-400">
               twin
             </span>
-            <span className="text-[10px] uppercase text-green-400/70">
-              {config.base.name}
-            </span>
             {twinContent}
             <div className="relative group flex items-center">
               <span

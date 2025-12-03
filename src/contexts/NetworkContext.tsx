@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AVAILABLE_ENVIRONMENTS,
   DEFAULT_ENVIRONMENT,
   getEnvironmentPreset,
   type BridgeEnvironment,
@@ -25,9 +27,23 @@ interface NetworkContextValue {
 const NetworkContext = createContext<NetworkContextValue | undefined>(undefined);
 
 export const NetworkProvider = ({ children }: { children: ReactNode }) => {
-  const [environment, setEnvironment] = useState<BridgeEnvironment>(DEFAULT_ENVIRONMENT);
+  const initialEnvironment =
+    (AVAILABLE_ENVIRONMENTS.includes(DEFAULT_ENVIRONMENT)
+      ? DEFAULT_ENVIRONMENT
+      : AVAILABLE_ENVIRONMENTS[0]) ?? DEFAULT_ENVIRONMENT;
+  const [environment, setEnvironmentState] = useState<BridgeEnvironment>(initialEnvironment);
 
   const config = useMemo(() => getEnvironmentPreset(environment), [environment]);
+  const setEnvironment = useCallback(
+    (env: BridgeEnvironment) => {
+      if (!AVAILABLE_ENVIRONMENTS.includes(env)) {
+        console.warn(`[terminally-onchain] attempted to set disabled environment: ${env}`);
+        return;
+      }
+      setEnvironmentState(env);
+    },
+    []
+  );
 
   useEffect(() => {
     solanaBridge.setEnvironment(environment);
@@ -39,7 +55,7 @@ export const NetworkProvider = ({ children }: { children: ReactNode }) => {
       config,
       setEnvironment,
     }),
-    [environment, config]
+    [environment, config, setEnvironment]
   );
 
   return <NetworkContext.Provider value={value}>{children}</NetworkContext.Provider>;

@@ -1,7 +1,11 @@
 import { PublicKey } from '@solana/web3.js';
 
 export const PROJECT_NAME = "Terminally Onchain";
-export const PROJECT_TAGLINE = "call any contract on base from your solana wallet";
+export const PROJECT_TAGLINE = "Call any contract on Base from your Solana wallet";
+export const MAINNET_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MAINNET === "true";
+export const AVAILABLE_ENVIRONMENTS: readonly BridgeEnvironment[] = MAINNET_ENABLED
+  ? (["devnet", "mainnet"] as const)
+  : (["devnet"] as const);
 
 export type BridgeAssetKind = 'sol' | 'spl';
 export type BridgeEnvironment = 'devnet' | 'mainnet';
@@ -176,10 +180,13 @@ export const NETWORK_PRESETS: Record<BridgeEnvironment, BridgeEnvironmentConfig>
 
 export const DEFAULT_ENVIRONMENT: BridgeEnvironment = "devnet";
 
-export const ENVIRONMENT_CHOICES = Object.values(NETWORK_PRESETS).map((preset) => ({
-  id: preset.id,
-  label: preset.label,
-}));
+export const ENVIRONMENT_CHOICES = AVAILABLE_ENVIRONMENTS.map((env) => {
+  const preset = NETWORK_PRESETS[env];
+  return {
+    id: preset.id,
+    label: preset.label,
+  };
+});
 
 export const getEnvironmentPreset = (
   env: BridgeEnvironment = DEFAULT_ENVIRONMENT
