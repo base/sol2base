@@ -13,6 +13,7 @@ import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
 import { encodeFunctionData, createPublicClient, http } from "viem";
 import { base as baseMainnet, baseSepolia } from "viem/chains";
 import { formatUnits } from "ethers";
+import { getBase58Codec } from "@solana/kit";
 import { solanaBridge, type BridgeAssetOverrides } from "../lib/bridge";
 import {
   PROJECT_TAGLINE,
@@ -63,6 +64,7 @@ const toBytes32Hex = (pubkey: PublicKey): `0x${string}` =>
   `0x${Array.from(pubkey.toBytes())
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")}`;
+
 
 export const MainContent: React.FC = () => {
   const { publicKey, connected, signTransaction } = useWallet();
@@ -203,6 +205,10 @@ export const MainContent: React.FC = () => {
     );
     appendLog(
       "system",
+      " remoteToken <mint>          fetch Base remote token for a wrapped SPL mint"
+    );
+    appendLog(
+      "system",
       " faucet sol                  drip SOL from cdp faucet"
     );
     appendLog(
@@ -248,6 +254,49 @@ export const MainContent: React.FC = () => {
       );
     });
   }, [appendLog, recentSignatures]);
+
+  const lookupRemoteToken = useCallback(
+    (mintInput: string) => {
+      const trimmed = mintInput.trim();
+      if (!trimmed) {
+        appendLog(
+          "error",
+          "Usage: remoteToken <spl-mint>. Example: remoteToken 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+        );
+        return;
+      }
+
+      let mint: PublicKey;
+      try {
+        mint = new PublicKey(trimmed);
+      } catch {
+        appendLog("error", `Invalid Solana mint address: ${mintInput}`);
+        return;
+      }
+
+      try {
+        const bytes = getBase58Codec().encode(mint.toBase58());
+        const remoteToken = `0x${Array.from(bytes)
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("")}`;
+        appendLog(
+          "success",
+          `${mint.toBase58()} remote token => ${remoteToken}`
+        );
+        appendLog(
+          "system",
+          `Use ${remoteToken} as the remote token when deploying the token to Base or bridging it back to Solana.`
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to derive remote token.";
+        appendLog("error", message);
+      }
+    },
+    [appendLog]
+  );
 
   const handleFaucet = useCallback(
     async (asset: string) => {
@@ -487,6 +536,16 @@ export const MainContent: React.FC = () => {
         const message =
           error instanceof Error ? error.message : "bridge transaction failed.";
         appendLog("error", message);
+        if (message.includes("User rejected the request")) {
+          setPendingBridge(null);
+          setBridgeOverrides(undefined);
+          setPendingCall(null);
+          setPendingCallMeta(null);
+          appendLog(
+            "system",
+            "Bridge request was canceled; staging cleared. Re-run the bridge command when you're ready."
+          );
+        }
       } finally {
         setIsExecuting(false);
       }
@@ -557,6 +616,11 @@ export const MainContent: React.FC = () => {
         case "history":
           printHistory();
           return false;
+        case "remoteToken":
+          await runWithLock(async () => {
+            await lookupRemoteToken(command.mint);
+          });
+          return false;
         case "balance":
     if (!publicKey) {
             appendLog("error", "connect a Solana wallet first.");
@@ -580,6 +644,7 @@ export const MainContent: React.FC = () => {
     [
       appendLog,
       handleFaucet,
+      lookupRemoteToken,
       printAssets,
       printHelp,
       printHistory,
@@ -691,6 +756,10 @@ export const MainContent: React.FC = () => {
                 <code> --mint</code>, <code>--remote</code>, <code>--decimals</code>.
               </li>
               <li>
+                Example: <code>bridge 1 4zMMC9... 0xabc --mint 4zMMC9... --remote 0x3119... --decimals 6</code>{" "}
+                bridges a custom SPL mint by explicitly telling the bridge which Solana mint, Base token, and decimals to use.
+              </li>
+              <li>
                 Attach Base calls via <code>--call-contract</code>, <code>--call-selector</code>{" "}
                 (e.g. <code>&quot;transfer(address,uint256)&quot;</code>), <code>--call-args</code>,{" "}
                 <code>--call-value</code>.
@@ -698,6 +767,10 @@ export const MainContent: React.FC = () => {
               <li>
                 To bridge SPL tokens, paste the mint instead of <code>sol</code> and set{" "}
                 <code>--remote</code> to its Base twin.
+              </li>
+              <li>
+                Need Base remote token for a wrapped SPL token? Run <code>remoteToken &lt;mint&gt;</code> to echo the{" "}
+                <code>--remote</code> address.
               </li>
               <li>
                 Your Twin address lives under the wallet button; use it as the destination when piping

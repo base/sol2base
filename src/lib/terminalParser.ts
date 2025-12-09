@@ -5,6 +5,7 @@ export type ParsedCommand =
   | { type: 'assets' }
   | { type: 'balance' }
   | { type: 'history' }
+  | { type: 'remoteToken'; mint: string }
   | { type: 'error'; message: string }
   | { type: 'faucet'; asset: string }
   | { type: 'bridge'; payload: BridgeCommandPayload };
@@ -63,6 +64,8 @@ export function parseTerminalCommand(input: string): ParsedCommand {
       return { type: 'balance' };
     case 'history':
       return { type: 'history' };
+    case 'remotetoken':
+      return parseRemoteToken(rest);
     case 'faucet':
       return parseFaucet(rest);
     case 'bridge':
@@ -73,6 +76,20 @@ export function parseTerminalCommand(input: string): ParsedCommand {
         message: `Unknown command "${command}". Type 'help' to see available commands.`,
       };
   }
+}
+
+function parseRemoteToken(args: string[]): ParsedCommand {
+  if (args.length === 0) {
+    return {
+      type: 'error',
+      message: "Usage: remoteToken <spl-mint>. Example: remoteToken 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    };
+  }
+
+  return {
+    type: 'remoteToken',
+    mint: args[0],
+  };
 }
 
 function parseFaucet(args: string[]): ParsedCommand {

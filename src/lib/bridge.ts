@@ -64,6 +64,10 @@ export class SolanaBridge {
     return this.environmentConfig;
   }
 
+  getRpcConnection(): Connection {
+    return this.connection;
+  }
+
   setEnvironment(env: BridgeEnvironment) {
     if (env === this.environmentKey) {
       return;
