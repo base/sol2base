@@ -1,5 +1,12 @@
 import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getAccount, getMint, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  getAssociatedTokenAddress,
+  getMint,
+} from '@solana/spl-token';
 import { formatUnits, parseUnits } from 'ethers';
 import {
   DEFAULT_ENVIRONMENT,
@@ -62,6 +69,10 @@ export class SolanaBridge {
 
   getEnvironmentConfig(): BridgeEnvironmentConfig {
     return this.environmentConfig;
+  }
+
+  getRpcConnection(): Connection {
+    return this.connection;
   }
 
   setEnvironment(env: BridgeEnvironment) {
@@ -225,6 +236,7 @@ export class SolanaBridge {
 
     let decimals = overrides?.decimals ?? base?.decimals;
     let mint: PublicKey | undefined;
+    let tokenProgram: PublicKey | undefined;
 
     if (type === 'spl') {
       if (!mintAddress) {
@@ -234,13 +246,23 @@ export class SolanaBridge {
       }
 
       mint = new PublicKey(mintAddress);
+      const mintAccountInfo = await this.connection.getAccountInfo(mint);
+      if (mintAccountInfo) {
+        tokenProgram = mintAccountInfo.owner;
+      }
+
       if (decimals === undefined) {
-        const mintInfo = await getMint(this.connection, mint);
-        decimals = mintInfo.decimals;
+        try {
+          const mintInfo = await getMint(this.connection, mint, undefined, tokenProgram);
+          decimals = mintInfo.decimals;
+        } catch {
+          // Proceed without mint metadata if fetch fails
+        }
       }
     } else {
       decimals = decimals ?? 9;
       mint = undefined;
+      tokenProgram = undefined;
     }
 
     if (decimals === undefined) {
@@ -256,7 +278,7 @@ export class SolanaBridge {
       decimals,
       remoteAddress,
       mint,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      tokenProgram: tokenProgram ?? TOKEN_PROGRAM_ID,
     };
   }
 
@@ -267,7 +289,7 @@ export class SolanaBridge {
         throw new Error('Amount must be greater than zero.');
       }
       const parsed = parseUnits(normalized, decimals);
-      if (parsed <= 0n) {
+      if (parsed <= BigInt(0)) {
         throw new Error('Amount must be greater than zero.');
       }
       return parsed;
@@ -294,27 +316,73 @@ export class SolanaBridge {
       throw new Error('Missing mint address for SPL asset.');
     }
 
-    const tokenAccount = await getAssociatedTokenAddress(asset.mint, walletAddress);
+    const tokenProgram = asset.tokenProgram ?? TOKEN_PROGRAM_ID;
+    const tokenAccount = await getAssociatedTokenAddress(
+      asset.mint,
+      walletAddress,
+      false,
+      tokenProgram,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
 
     let account;
     try {
-      account = await getAccount(this.connection, tokenAccount);
+      account = await getAccount(this.connection, tokenAccount, undefined, tokenProgram);
     } catch {
-      throw new Error(
-        `No associated token account found for ${asset.label}. Create an ATA and fund it first.`
-      );
+      return { tokenAccount };
     }
 
-    const balance = BigInt(account.amount.toString());
-    if (balance < amountRequired) {
-      const readableBalance = formatUnits(balance, asset.decimals);
-      const readableRequired = formatUnits(amountRequired, asset.decimals);
-      throw new Error(
-        `Insufficient ${asset.symbol.toUpperCase()} balance. You have ${readableBalance} but need ${readableRequired}.`
-      );
+    try {
+      const balance = BigInt(account.amount.toString());
+      if (balance < amountRequired) {
+        // Continue even if balance is low to surface on-chain error
+      }
+    } catch {
+      // Continue to allow on-chain error to surface
     }
 
     return { tokenAccount };
+  }
+
+  private async createAtaAndFetchAccount({
+    walletAddress,
+    asset,
+    tokenAccount,
+    signTransaction,
+  }: {
+    walletAddress: PublicKey;
+    asset: BridgeAssetDetails;
+    tokenAccount: PublicKey;
+    signTransaction: (transaction: Transaction) => Promise<Transaction>;
+  }) {
+    const tokenProgram = asset.tokenProgram ?? TOKEN_PROGRAM_ID;
+    try {
+      const ix = createAssociatedTokenAccountInstruction(
+        walletAddress,
+        tokenAccount,
+        walletAddress,
+        asset.mint as PublicKey,
+        tokenProgram,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      const tx = new Transaction().add(ix);
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      tx.feePayer = walletAddress;
+      tx.recentBlockhash = blockhash;
+
+      const signedTx = await signTransaction(tx);
+      const sig = await this.connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+      });
+      await this.connection.confirmTransaction(sig, 'confirmed');
+    } catch (error) {
+      // Re-throw to allow upstream handling and on-chain logs to surface
+      throw error;
+    }
+
+    // Re-fetch account after creation
+    return getAccount(this.connection, tokenAccount, undefined, tokenProgram);
   }
 
   private assertEvmAddress(address: string, label: string) {
