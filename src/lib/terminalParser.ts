@@ -37,6 +37,8 @@ const FLAG_SPECS = {
   'call-value': { type: 'string', key: 'callValue' },
 } as const;
 
+const BASE58_MINT_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
 export function parseTerminalCommand(input: string): ParsedCommand {
   let tokens: string[];
   try {
@@ -116,7 +118,8 @@ function parseBridge(args: string[]): ParsedCommand {
 
   const [amountRaw, assetRaw, destination, ...flagTokens] = args;
   const amount = amountRaw.trim();
-  const asset = assetRaw.trim().toLowerCase();
+  const assetInput = assetRaw.trim();
+  const asset = BASE58_MINT_REGEX.test(assetInput) ? assetInput : assetInput.toLowerCase();
 
   if (!amount || !asset || !destination) {
     return {
