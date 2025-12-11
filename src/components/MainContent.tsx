@@ -8,11 +8,20 @@ import React, {
   useState,
 } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
-import { getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+import { Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  createInitializeMintInstruction,
+  createMintToInstruction,
+  getAccount,
+  getAssociatedTokenAddress,
+} from "@solana/spl-token";
 import { encodeFunctionData, createPublicClient, http } from "viem";
 import { base as baseMainnet, baseSepolia } from "viem/chains";
-import { formatUnits } from "ethers";
+import { formatUnits, parseUnits } from "ethers";
 import { getBase58Codec } from "@solana/kit";
 import { solanaBridge, type BridgeAssetOverrides } from "../lib/bridge";
 import {
@@ -25,6 +34,7 @@ import {
   parseTerminalCommand,
   type ParsedCommand,
   type BridgeCommandPayload,
+  type DeploySplPayload,
 } from "../lib/terminalParser";
 import type { BaseContractCall } from "../lib/realBridgeImplementation";
 
@@ -213,6 +223,10 @@ export const MainContent: React.FC = () => {
     );
     appendLog(
       "system",
+      " deploySpl <name> <symbol> <decimals> <supply>   deploy SPL on devnet to your wallet"
+    );
+    appendLog(
+      "system",
       " history                     recent Solana transaction signatures"
     );
     appendLog(
@@ -296,6 +310,109 @@ export const MainContent: React.FC = () => {
       }
     },
     [appendLog]
+  );
+
+  const handleDeploySpl = useCallback(
+    async ({ name, symbol, decimals, supply }: DeploySplPayload) => {
+      if (environment !== "devnet") {
+        appendLog("error", "deploySpl is only available on Solana devnet.");
+        return;
+      }
+
+      if (!publicKey || !signTransaction) {
+        appendLog("error", "connect a Solana wallet first.");
+        return;
+      }
+
+      let supplyInBaseUnits: bigint;
+      try {
+        supplyInBaseUnits = parseUnits(supply, decimals);
+        if (supplyInBaseUnits <= BigInt(0)) {
+          throw new Error("Supply must be greater than zero.");
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Invalid supply amount.";
+        appendLog("error", message);
+        return;
+      }
+
+      const mintKeypair = Keypair.generate();
+      const ata = await getAssociatedTokenAddress(
+        mintKeypair.publicKey,
+        publicKey
+      );
+
+      const rentLamports = await connection.getMinimumBalanceForRentExemption(
+        MINT_SIZE
+      );
+
+      const tx = new Transaction();
+      tx.add(
+        SystemProgram.createAccount({
+          fromPubkey: publicKey,
+          newAccountPubkey: mintKeypair.publicKey,
+          space: MINT_SIZE,
+          lamports: rentLamports,
+          programId: TOKEN_PROGRAM_ID,
+        }),
+        createInitializeMintInstruction(
+          mintKeypair.publicKey,
+          decimals,
+          publicKey,
+          publicKey,
+          TOKEN_PROGRAM_ID
+        ),
+        createAssociatedTokenAccountInstruction(
+          publicKey,
+          ata,
+          publicKey,
+          mintKeypair.publicKey,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        ),
+        createMintToInstruction(
+          mintKeypair.publicKey,
+          ata,
+          publicKey,
+          supplyInBaseUnits,
+          [],
+          TOKEN_PROGRAM_ID
+        )
+      );
+
+      tx.feePayer = publicKey;
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+
+      tx.partialSign(mintKeypair);
+      const signed = await signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+      });
+      await connection.confirmTransaction(sig, "confirmed");
+
+      const explorer = `${config.solana.blockExplorer}/tx/${sig}${
+        config.solana.explorerTxSuffix ?? ""
+      }`;
+      appendLog(
+        "success",
+        `deploySpl success :: mint=${mintKeypair.publicKey.toBase58()} :: supply=${supply} ${symbol} :: ${explorer}`
+      );
+      appendLog(
+        "system",
+        `Note: name/symbol are off-chain metadata; on-chain mint + decimals are set. ATA: ${ata.toBase58()}`
+      );
+    },
+    [
+      appendLog,
+      config.solana.blockExplorer,
+      config.solana.explorerTxSuffix,
+      connection,
+      environment,
+      publicKey,
+      signTransaction,
+    ]
   );
 
   const handleFaucet = useCallback(
@@ -635,6 +752,11 @@ export const MainContent: React.FC = () => {
             await handleFaucet(command.asset);
           });
           return false;
+      case "deploySpl":
+        await runWithLock(async () => {
+          await handleDeploySpl(command.payload);
+        });
+        return false;
         case "bridge":
         case "empty":
         default:
@@ -644,6 +766,7 @@ export const MainContent: React.FC = () => {
     [
       appendLog,
       handleFaucet,
+      handleDeploySpl,
       lookupRemoteToken,
       printAssets,
       printHelp,
@@ -758,6 +881,9 @@ export const MainContent: React.FC = () => {
               <li>
                 Example: <code>bridge 1 4zMMC9... 0xabc --mint 4zMMC9... --remote 0x3119... --decimals 6</code>{" "}
                 bridges a custom SPL mint by explicitly telling the bridge which Solana mint, Base token, and decimals to use.
+              </li>
+              <li>
+                Create a devnet SPL and mint full supply to your wallet: <code>deploySpl MyToken MYT 6 1000000</code>
               </li>
               <li>
                 Attach Base calls via <code>--call-contract</code>, <code>--call-selector</code>{" "}

@@ -254,7 +254,7 @@ export class SolanaBridge {
       if (decimals === undefined) {
         try {
           const mintInfo = await getMint(this.connection, mint, undefined, tokenProgram);
-          decimals = mintInfo.decimals;
+        decimals = mintInfo.decimals;
         } catch {
           // Proceed without mint metadata if fetch fails
         }
@@ -333,8 +333,8 @@ export class SolanaBridge {
     }
 
     try {
-      const balance = BigInt(account.amount.toString());
-      if (balance < amountRequired) {
+    const balance = BigInt(account.amount.toString());
+    if (balance < amountRequired) {
         // Continue even if balance is low to surface on-chain error
       }
     } catch {

@@ -6,6 +6,7 @@ export type ParsedCommand =
   | { type: 'balance' }
   | { type: 'history' }
   | { type: 'remoteToken'; mint: string }
+  | { type: 'deploySpl'; payload: DeploySplPayload }
   | { type: 'error'; message: string }
   | { type: 'faucet'; asset: string }
   | { type: 'bridge'; payload: BridgeCommandPayload };
@@ -15,6 +16,13 @@ export interface BridgeCommandPayload {
   asset: string;
   destination: string;
   flags: BridgeCommandFlags;
+}
+
+export interface DeploySplPayload {
+  name: string;
+  symbol: string;
+  decimals: number;
+  supply: string;
 }
 
 export interface BridgeCommandFlags {
@@ -70,6 +78,8 @@ export function parseTerminalCommand(input: string): ParsedCommand {
       return parseRemoteToken(rest);
     case 'faucet':
       return parseFaucet(rest);
+    case 'deployspl':
+      return parseDeploySpl(rest);
     case 'bridge':
       return parseBridge(rest);
     default:
@@ -105,6 +115,35 @@ function parseFaucet(args: string[]): ParsedCommand {
   return {
     type: 'faucet',
     asset: args[0].toLowerCase(),
+  };
+}
+
+function parseDeploySpl(args: string[]): ParsedCommand {
+  if (args.length < 4) {
+    return {
+      type: 'error',
+      message: "Usage: deploySpl <name> <symbol> <decimals> <supply>",
+    };
+  }
+
+  const [name, symbol, decimalsRaw, supply] = args;
+  const decimals = Number(decimalsRaw);
+
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) {
+    return {
+      type: 'error',
+      message: "Decimals must be an integer between 0 and 18.",
+    };
+  }
+
+  return {
+    type: 'deploySpl',
+    payload: {
+      name: name.trim(),
+      symbol: symbol.trim(),
+      decimals,
+      supply: supply.trim(),
+    },
   };
 }
 
