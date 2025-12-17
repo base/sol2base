@@ -37,28 +37,17 @@ import {
   type DeploySplPayload,
 } from "../lib/terminalParser";
 import type { BaseContractCall } from "../lib/realBridgeImplementation";
-
-type TerminalVariant = "system" | "command" | "success" | "error";
-
-interface LogEntry {
-  id: string;
-  variant: TerminalVariant;
-  content: string;
-  timestamp: string;
-}
+import { createLog, type LogEntry, type TerminalVariant } from "../lib/terminalLogs";
+import { QuickstartCard } from "./terminal/QuickstartCard";
+import { GuideModal } from "./terminal/GuideModal";
+import { TerminalInput } from "./terminal/TerminalInput";
+import { LogsPanel } from "./terminal/LogsPanel";
 
 interface BridgeStage {
   payload: BridgeCommandPayload;
   overrides?: BridgeAssetOverrides;
   call: BaseContractCall | null;
 }
-
-const createLog = (variant: TerminalVariant, content: string): LogEntry => ({
-  id: `${variant}-${Date.now()}-${Math.random()}`,
-  variant,
-  content,
-  timestamp: new Date().toLocaleTimeString(),
-});
 
 const BRIDGE_ABI = [
   {
