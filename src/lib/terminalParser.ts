@@ -33,6 +33,8 @@ export interface BridgeCommandFlags {
   callSelector?: string;
   callArgs?: string[];
   callValue?: string;
+  withBc?: string;
+  bcFee?: number;
 }
 
 const FLAG_SPECS = {
@@ -43,6 +45,8 @@ const FLAG_SPECS = {
   'call-selector': { type: 'string', key: 'callSelector' },
   'call-args': { type: 'args', key: 'callArgs' },
   'call-value': { type: 'string', key: 'callValue' },
+  'with-bc': { type: 'string', key: 'withBc' },
+  'bc-fee': { type: 'number', key: 'bcFee' },
 } as const;
 
 const BASE58_MINT_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
