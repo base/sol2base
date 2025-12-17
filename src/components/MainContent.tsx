@@ -167,7 +167,7 @@ export const MainContent: React.FC = () => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [logEntries]);
+  }, [logEntries, appendLog]);
 
   useEffect(() => {
     if (!exampleCopied) return;
@@ -201,6 +201,7 @@ export const MainContent: React.FC = () => {
           setTwinAddress(null);
         }
       }
+
     };
 
     resolveTwin();
@@ -208,7 +209,7 @@ export const MainContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [baseClient, config.base.bridge, publicKey]);
+  }, [appendLog, baseClient, config.base.bridge, publicKey]);
 
   const runWithLock = useCallback(async (action: () => Promise<void>) => {
     setIsLocked(true);
@@ -569,7 +570,7 @@ export const MainContent: React.FC = () => {
   const buildBuilderHookData = useCallback(
     (destination: string, builderCode: string, feeBps: number) => {
       const coder = new AbiCoder();
-      return coder.encode(["address", "string", "uint256"], [destination, builderCode, feeBps]);
+      return coder.encode(["address", "string", "uint8"], [destination, builderCode, feeBps]);
     },
     []
   );
@@ -662,12 +663,23 @@ export const MainContent: React.FC = () => {
         setPendingCallMeta(null);
       }
 
-      // Builder code attachment
+      // Builder code attachment (Flywheel send on Base)
       if (payload.flags.withBc) {
         const feeBps = typeof payload.flags.bcFee === "number" ? payload.flags.bcFee : 0;
+        if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 255) {
+          appendLog("error", "bc-fee must be an integer between 0 and 255 (uint8).");
+          return null;
+        }
         const remoteToken = payload.flags.remote ?? config.base.wrappedSOL;
         const builderCall = buildBuilderCall(payload.destination, payload.flags.withBc, feeBps, remoteToken);
         callOption = callOption ? buildMulticall(builderCall, callOption) : builderCall;
+
+        setPendingCallMeta({
+          contract: FLYWHEEL_ADDRESS,
+          selector: "send(address,address,bytes)",
+          args: [BRIDGE_CAMPAIGN_ADDRESS, remoteToken, "<hookData>"],
+          value: "0",
+        });
       }
 
       setPendingCall(callOption);
@@ -681,10 +693,7 @@ export const MainContent: React.FC = () => {
       );
 
       if (callOption) {
-        appendLog(
-          "system",
-          `attached call :: ${payload.flags.callSelector} @ ${payload.flags.callContract}`
-        );
+        appendLog("system", `attached call`);
       }
       return {
         payload,
@@ -710,6 +719,11 @@ export const MainContent: React.FC = () => {
 
       const overrides = stage?.overrides ?? bridgeOverrides;
       const callOption = stage?.call ?? pendingCall;
+      const destinationForBridge =
+        typeof bridgePayload.flags.withBc === "string"
+          ? BRIDGE_CAMPAIGN_ADDRESS
+          : bridgePayload.destination;
+      console.log("destinationForBridge", destinationForBridge, "withBc", bridgePayload.flags.withBc);
 
       setIsExecuting(true);
       appendLog("system", "executing bridge workflow...");
@@ -719,7 +733,7 @@ export const MainContent: React.FC = () => {
           walletAddress: publicKey,
           amount: bridgePayload.amount,
           assetSymbol: bridgePayload.asset,
-          destinationAddress: bridgePayload.destination,
+          destinationAddress: destinationForBridge,
           overrides,
           callOptions: callOption ?? undefined,
           signTransaction,
