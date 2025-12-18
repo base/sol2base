@@ -21,7 +21,7 @@ import {
 } from "@solana/spl-token";
 import { encodeFunctionData, createPublicClient, http } from "viem";
 import { base as baseMainnet, baseSepolia } from "viem/chains";
-import { formatUnits, parseUnits } from "ethers";
+import { AbiCoder, formatUnits, parseUnits } from "ethers";
 import { getBase58Codec } from "@solana/kit";
 import { solanaBridge, type BridgeAssetOverrides } from "../lib/bridge";
 import {
@@ -37,28 +37,13 @@ import {
   type DeploySplPayload,
 } from "../lib/terminalParser";
 import type { BaseContractCall } from "../lib/realBridgeImplementation";
-
-type TerminalVariant = "system" | "command" | "success" | "error";
-
-interface LogEntry {
-  id: string;
-  variant: TerminalVariant;
-  content: string;
-  timestamp: string;
-}
+import { createLog, type LogEntry, type TerminalVariant } from "../lib/terminalLogs";
 
 interface BridgeStage {
   payload: BridgeCommandPayload;
   overrides?: BridgeAssetOverrides;
   call: BaseContractCall | null;
 }
-
-const createLog = (variant: TerminalVariant, content: string): LogEntry => ({
-  id: `${variant}-${Date.now()}-${Math.random()}`,
-  variant,
-  content,
-  timestamp: new Date().toLocaleTimeString(),
-});
 
 const BRIDGE_ABI = [
   {
@@ -67,6 +52,42 @@ const BRIDGE_ABI = [
     stateMutability: "view",
     inputs: [{ internalType: "bytes32", name: "sender", type: "bytes32" }],
     outputs: [{ internalType: "address", name: "", type: "address" }],
+  },
+] as const;
+
+const BRIDGE_CAMPAIGN_ADDRESS = "0xb61A842E4361C53C3f3c376DF3758b330BD6201c";
+const FLYWHEEL_ADDRESS = "0x00000f14ad09382841db481403d1775adee1179f";
+const MULTICALL_ADDRESS = "0xcA11bde05977b3631167028862bE2a173976CA11";
+const FLYWHEEL_ABI = [
+  {
+    name: "send",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "campaign", type: "address" },
+      { name: "token", type: "address" },
+      { name: "hookData", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+const MULTICALL_ABI = [
+  {
+    name: "multicall",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "calls",
+        type: "tuple[]",
+        components: [
+          { name: "target", type: "address" },
+          { name: "callData", type: "bytes" },
+        ],
+      },
+    ],
+    outputs: [{ name: "returnData", type: "bytes[]" }],
   },
 ] as const;
 
@@ -146,7 +167,7 @@ export const MainContent: React.FC = () => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [logEntries]);
+  }, [logEntries, appendLog]);
 
   useEffect(() => {
     if (!exampleCopied) return;
@@ -180,6 +201,7 @@ export const MainContent: React.FC = () => {
           setTwinAddress(null);
         }
       }
+
     };
 
     resolveTwin();
@@ -187,7 +209,7 @@ export const MainContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [baseClient, config.base.bridge, publicKey]);
+  }, [appendLog, baseClient, config.base.bridge, publicKey]);
 
   const runWithLock = useCallback(async (action: () => Promise<void>) => {
     setIsLocked(true);
@@ -397,7 +419,7 @@ export const MainContent: React.FC = () => {
       }`;
       appendLog(
         "success",
-        `deploySpl success :: mint=${mintKeypair.publicKey.toBase58()} :: supply=${supply} ${symbol} :: ${explorer}`
+        `deploySpl success :: ${name} (${symbol}) :: mint=${mintKeypair.publicKey.toBase58()} :: supply=${supply} ${symbol} :: ${explorer}`
       );
       appendLog(
         "system",
@@ -545,6 +567,58 @@ export const MainContent: React.FC = () => {
     []
   );
 
+  const buildBuilderHookData = useCallback(
+    (destination: string, builderCode: string, feeBps: number) => {
+      const coder = new AbiCoder();
+      return coder.encode(["address", "string", "uint8"], [destination, builderCode, feeBps]);
+    },
+    []
+  );
+
+  const buildBuilderCall = useCallback(
+    (destination: string, builderCode: string, feeBps: number, tokenAddress: string): BaseContractCall => {
+      const hookData = buildBuilderHookData(destination, builderCode, feeBps);
+      const data = encodeFunctionData({
+        abi: FLYWHEEL_ABI,
+        functionName: "send",
+        args: [
+          BRIDGE_CAMPAIGN_ADDRESS as `0x${string}`,
+          tokenAddress as `0x${string}`,
+          hookData as `0x${string}`,
+        ],
+      });
+      return {
+        type: "call",
+        target: FLYWHEEL_ADDRESS,
+        value: "0",
+        data,
+      };
+    },
+    [buildBuilderHookData]
+  );
+
+  const buildMulticall = useCallback(
+    (builder: BaseContractCall, userCall: BaseContractCall): BaseContractCall => {
+      const data = encodeFunctionData({
+        abi: MULTICALL_ABI,
+        functionName: "multicall",
+        args: [
+          [
+            { target: builder.target! as `0x${string}`, callData: builder.data! as `0x${string}` },
+            { target: userCall.target! as `0x${string}`, callData: userCall.data! as `0x${string}` },
+          ],
+        ],
+      });
+      return {
+        type: "delegatecall",
+        target: MULTICALL_ADDRESS,
+        value: "0",
+        data,
+      };
+    },
+    []
+  );
+
   const queueBridge = useCallback(
     (payload: BridgeCommandPayload): BridgeStage | null => {
       const overrides: BridgeAssetOverrides = {};
@@ -588,6 +662,26 @@ export const MainContent: React.FC = () => {
       } else {
         setPendingCallMeta(null);
       }
+
+      // Builder code attachment (Flywheel send on Base)
+      if (payload.flags.withBc) {
+        const feeBps = typeof payload.flags.bcFee === "number" ? payload.flags.bcFee : 0;
+        if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 255) {
+          appendLog("error", "bc-fee must be an integer between 0 and 255 (uint8).");
+          return null;
+        }
+        const remoteToken = payload.flags.remote ?? config.base.wrappedSOL;
+        const builderCall = buildBuilderCall(payload.destination, payload.flags.withBc, feeBps, remoteToken);
+        callOption = callOption ? buildMulticall(builderCall, callOption) : builderCall;
+
+        setPendingCallMeta({
+          contract: FLYWHEEL_ADDRESS,
+          selector: "send(address,address,bytes)",
+          args: [BRIDGE_CAMPAIGN_ADDRESS, remoteToken, "<hookData>"],
+          value: "0",
+        });
+      }
+
       setPendingCall(callOption);
 
       setPendingBridge(payload);
@@ -599,10 +693,7 @@ export const MainContent: React.FC = () => {
       );
 
       if (callOption) {
-        appendLog(
-          "system",
-          `attached call :: ${payload.flags.callSelector} @ ${payload.flags.callContract}`
-        );
+        appendLog("system", `attached call`);
       }
       return {
         payload,
@@ -610,7 +701,7 @@ export const MainContent: React.FC = () => {
         call: callOption,
       };
     },
-    [appendLog, config.label, encodeCall]
+    [appendLog, buildBuilderCall, buildMulticall, config.base.wrappedSOL, config.label, encodeCall]
   );
 
   const executeQueuedBridge = useCallback(
@@ -628,6 +719,11 @@ export const MainContent: React.FC = () => {
 
       const overrides = stage?.overrides ?? bridgeOverrides;
       const callOption = stage?.call ?? pendingCall;
+      const destinationForBridge =
+        typeof bridgePayload.flags.withBc === "string"
+          ? BRIDGE_CAMPAIGN_ADDRESS
+          : bridgePayload.destination;
+      console.log("destinationForBridge", destinationForBridge, "withBc", bridgePayload.flags.withBc);
 
       setIsExecuting(true);
       appendLog("system", "executing bridge workflow...");
@@ -637,7 +733,7 @@ export const MainContent: React.FC = () => {
           walletAddress: publicKey,
           amount: bridgePayload.amount,
           assetSymbol: bridgePayload.asset,
-          destinationAddress: bridgePayload.destination,
+          destinationAddress: destinationForBridge,
           overrides,
           callOptions: callOption ?? undefined,
           signTransaction,
