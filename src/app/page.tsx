@@ -2,6 +2,9 @@
 
 import { MainContent } from '../components/MainContent';
 import { WalletConnection } from '../components/WalletConnection';
+import { Footer } from '../components/Footer';
+import { NetworkStatus, useNetworkStatus } from '../components/NetworkStatus';
+import { KeyboardShortcuts } from '../components/terminal/KeyboardShortcuts';
 import { useNetwork } from '../contexts/NetworkContext';
 import {
   ENVIRONMENT_CHOICES,
@@ -12,6 +15,7 @@ import {
 
 export default function Home() {
   const { config, environment, setEnvironment } = useNetwork();
+  const { solanaStatus, baseStatus, solanaLatency, baseLatency } = useNetworkStatus();
 
   return (
     <div className="min-h-screen bg-[#010104] text-[#aaf7c9] font-mono">
@@ -27,6 +31,12 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center gap-4 flex-wrap justify-end">
+            <NetworkStatus
+              solanaStatus={solanaStatus}
+              baseStatus={baseStatus}
+              solanaLatency={solanaLatency}
+              baseLatency={baseLatency}
+            />
             <label className="text-[11px] uppercase tracking-[0.2em] text-green-300 flex flex-col items-end gap-1">
               <span>network</span>
               <select
@@ -41,11 +51,14 @@ export default function Home() {
                 ))}
               </select>
             </label>
+            <KeyboardShortcuts />
             <WalletConnection />
           </div>
         </header>
 
         <MainContent />
+        
+        <Footer />
       </div>
     </div>
   );
