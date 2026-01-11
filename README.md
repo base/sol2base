@@ -1,5 +1,7 @@
 # Terminally Onchain
 
+![CI](https://github.com/AdekunleBamz/sol2base/actions/workflows/ci.yml/badge.svg)
+
 <div align="center">
   <img src="assets/terminally-onchain.png" alt="Terminally Onchain Bridge" width="800" />
 </div>
