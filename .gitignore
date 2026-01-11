@@ -42,3 +42,7 @@ next-env.d.ts
 
 # local clones / tooling
 base-bridge/
+
+# IDE
+.vscode/
+.idea/
